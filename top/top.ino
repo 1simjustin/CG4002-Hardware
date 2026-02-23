@@ -15,4 +15,6 @@
  * 
  * Implementation consists of ESP-IDF FreeRTOS tasks for parallel and
  * concurrent operations, utilising 2 cores of the ESP32.
+ * We reserve Core 0 for sensor reading and data processing,
+ * while Core 1 is used for wireless communication and battery display.
  */
