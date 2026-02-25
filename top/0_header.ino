@@ -15,8 +15,8 @@
 // #define DEBUG
 // #define USE_AHRS
 
-// #define TORSO_DEVICE
-// #define LEG
+#define TORSO_DEVICE
+// #define LEG_DEVICE
 
 // #define DEVICE_ID // For identification in Comms
 
@@ -50,6 +50,11 @@
 #define SENSORS_COMMS_TASK_PRIORITY 5
 #define BATT_COMMS_TASK_PRIORITY 4
 
+// I2C MUX Definitions
+#ifdef TORSO_DEVICE
+#define I2C_MUX_ADDR 0x71
+#endif
+
 // IMU Definitions
 #define MPU6050_DEVICE_ID 0x68
 #define RAD_TO_DEG 57.2957795131
@@ -59,10 +64,8 @@
 
 #define NUM_IMUS 0
 #ifdef TORSO_DEVICE
-#define NUM_IMUS 3
-#define CHEST_IMU_ID (NUM_IMUS - 1) // Last channel on Mux
-#define I2C_ADDR_SEL_PIN1 25
-#define I2C_ADDR_SEL_PIN2 26
+#define NUM_IMUS 2
+#define CHEST_IMU_ID (NUM_IMUS) // Last channel on Mux
 #endif
 #ifdef LEG_DEVICE
 #define NUM_IMUS 1
@@ -89,6 +92,8 @@
 #define VOLTAGE_DIVIDER_RATIO 2.0
 #define ADC_REF_VOLTAGE 3.3
 #define BATT_PERIOD_MS 1000
+#define BATT_VOLT_MAX 4.2
+#define BATT_VOLT_MIN 3.0
 
 /**
  * Global Variables
@@ -154,6 +159,7 @@ void commsBattTask(void *parameter);
 void imuTask(void *parameter);
 double processFlexReading(int raw_reading);
 void flexTask(void *parameter);
+int batt_soc(double voltage);
 void battTask(void *parameter);
 
 // Actuators Function Prototypes

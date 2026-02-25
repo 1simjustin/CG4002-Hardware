@@ -13,6 +13,16 @@ void voltage_reader_setup() {
     pinMode(BATTERY_PIN, INPUT);
 }
 
+int batt_soc(double voltage) {
+    if (voltage >= BATT_VOLT_MAX) {
+        return 100;
+    } 
+    if (voltage <= BATT_VOLT_MIN) {
+        return 0;
+    } 
+    return (int)map(voltage*100, BATT_VOLT_MIN*100, BATT_VOLT_MAX*100, 0, 100);
+}
+
 void battTask(void *parameter) {
   for (;;) {
     int adc_value = analogRead(BATTERY_PIN);

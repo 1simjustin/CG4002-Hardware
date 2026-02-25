@@ -8,22 +8,20 @@ double radToDeg(double rad) {
 
 #ifdef TORSO_DEVICE
 void set_mux_channel(int channel) {
-  digitalWrite(I2C_ADDR_SEL_PIN1, (channel & 0x01) ? HIGH : LOW);
-  digitalWrite(I2C_ADDR_SEL_PIN2, (channel & 0x02) ? HIGH : LOW);
-  delay(10); // Short delay to allow Mux to switch
+  if (channel > 7) return;
+
+  Wire.beginTransmission(I2C_MUX_ADDR);
+  Wire.write(1 << channel);
+  Wire.endTransmission();
 }
 #endif
 
 void imu_setup() {
     #ifdef TORSO_DEVICE
-    // Setup I2C Mux
-    pinMode(I2C_ADDR_SEL_PIN1, OUTPUT);
-    pinMode(I2C_ADDR_SEL_PIN2, OUTPUT);
-
     // Initialize each IMU by switching the Mux to the correct channel
     for (int i = 0; i < NUM_IMUS; i++) {
         set_mux_channel(i);
-        if (!mpu_devices[i].begin(MPU6050_DEVICE_ID, 0x70)) {
+        if (!mpu_devices[i].begin(MPU6050_DEVICE_ID, 0x0, &Wire, 0)) {
             Serial.print("Failed to find MPU6050 chip for IMU ");
             Serial.println(i);
             while (1) {
