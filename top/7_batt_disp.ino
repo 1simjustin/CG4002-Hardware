@@ -31,6 +31,7 @@ void battTask(void *parameter) {
     // Clamp voltage to reference voltage to avoid erroneous readings
     // Especially important since voltage from USB reads as 5V which is above the ADC reference voltage
     batt_voltage = max(0.0, min(batt_voltage, ADC_REF_VOLTAGE));
+    batt_percentage = batt_soc(batt_voltage);
 
     xSemaphoreGive(xBattSemaphore);
     vTaskDelay(BATT_PERIOD_MS / portTICK_PERIOD_MS);

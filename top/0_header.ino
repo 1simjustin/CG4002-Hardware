@@ -119,6 +119,7 @@ const int FLEX_PINS[NUM_FLEX] = {FLEX_PIN};
 
 // Battery Variables
 double batt_voltage;
+int batt_percentage;
 
 /**
  * RTOS Prototypes
