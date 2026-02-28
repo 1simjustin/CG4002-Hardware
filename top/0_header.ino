@@ -14,6 +14,7 @@
 
 // #define DEBUG
 // #define USE_AHRS
+// #define ENABLE_SENSOR_COMMS
 
 #define TORSO_DEVICE
 // #define LEG_DEVICE
@@ -40,7 +41,7 @@
 #define I2C_SCL_PIN 22
 
 // RTOS Definitions
-#define STACK_SIZE 10000
+#define STACK_SIZE 4096
 
 #define IMU_TASK_PRIORITY 4
 #define FLEX_TASK_PRIORITY 3
@@ -51,7 +52,7 @@
 #define BATT_COMMS_TASK_PRIORITY 4
 
 // I2C MUX Definitions
-#ifdef TORSO_DEVICE
+#if defined(TORSO_DEVICE)
 #define I2C_MUX_ADDR 0x71
 #endif
 
@@ -62,28 +63,29 @@
 #define IMU_FREQ_HZ 150
 #define IMU_PERIOD_MS (1000 / IMU_FREQ_HZ)
 
-#define NUM_IMUS 0
-#ifdef TORSO_DEVICE
-#define NUM_IMUS 2
-#define CHEST_IMU_ID (NUM_IMUS) // Last channel on Mux
-#endif
-#ifdef LEG_DEVICE
-#define NUM_IMUS 1
+#if defined(TORSO_DEVICE)
+    #define NUM_IMU 3
+    #define IMU_OFFSET 1
+    #define CHEST_IMU_ID (NUM_IMU - IMU_OFFSET) // Last channel on Mux
+#elif defined(LEG_DEVICE)
+    #define NUM_IMU 1
+#else
+    #define NUM_IMU 0
 #endif
 
 // Flex Sensor Definitions
 #define FLEX_FREQ_HZ 150
 #define FLEX_PERIOD_MS (1000 / FLEX_FREQ_HZ)
 
-#define NUM_FLEX 0
-#ifdef TORSO_DEVICE
-#define NUM_FLEX 2
-#define FLEX_PIN1 A1
-#define FLEX_PIN2 A2
-#endif
-#ifdef LEG_DEVICE
-#define NUM_FLEX 1
-#define FLEX_PIN A1
+#if defined(TORSO_DEVICE)
+    #define NUM_FLEX 2
+    #define FLEX_PIN1 A1
+    #define FLEX_PIN2 A2
+#elif defined(LEG_DEVICE)
+    #define NUM_FLEX 1
+    #define FLEX_PIN A1
+#else
+    #define NUM_FLEX 0
 #endif
 
 // Batt Reader Definitions
@@ -95,43 +97,50 @@
 #define BATT_VOLT_MAX 4.2
 #define BATT_VOLT_MIN 3.0
 
+// Batt Display Definitions
+#define BATT_LED_PIN D2
+#define BATT_LOW_THRESHOLD 50
+#define BATT_CRITICAL_THRESHOLD 20
+
 /**
  * Global Variables
  */
 
 // IMU Variables
-Adafruit_MPU6050 mpu_devices[NUM_IMUS];
-Adafruit_Mahony filters[NUM_IMUS];
-sensors_event_t a_arr[NUM_IMUS], g_arr[NUM_IMUS];
-double x_out[NUM_IMUS], y_out[NUM_IMUS], z_out[NUM_IMUS];
-double roll_out[NUM_IMUS], pitch_out[NUM_IMUS], yaw_out[NUM_IMUS];
+Adafruit_MPU6050 mpu_devices[NUM_IMU];
+Adafruit_Mahony filters[NUM_IMU];
+sensors_event_t a_arr[NUM_IMU], g_arr[NUM_IMU], temp[NUM_IMU];
+double x_out[NUM_IMU], y_out[NUM_IMU], z_out[NUM_IMU];
+double roll_out[NUM_IMU], pitch_out[NUM_IMU], yaw_out[NUM_IMU];
 
 // Flex Sensor Variables
 int flex_readings[NUM_FLEX];
 double flex_output[NUM_FLEX];
 
-#ifdef TORSO_DEVICE
+#if defined(TORSO_DEVICE)
 const int FLEX_PINS[NUM_FLEX] = {FLEX_PIN1, FLEX_PIN2};
-#endif
-#ifdef LEG_DEVICE
+#elif defined(LEG_DEVICE)
 const int FLEX_PINS[NUM_FLEX] = {FLEX_PIN};
 #endif
 
 // Battery Variables
 double batt_voltage;
 int batt_percentage;
+bool blink_state = false;
 
 /**
  * RTOS Prototypes
  */
 
+BaseType_t result;
+
 #if defined(TORSO_DEVICE) || defined(LEG_DEVICE)
-SemaphoreHandle_t xIMUSemaphore[NUM_IMUS] = { nullptr };
+SemaphoreHandle_t xIMUSemaphore[NUM_IMU] = { nullptr };
 SemaphoreHandle_t xFlexSemaphore[NUM_FLEX] = { nullptr };
 
-TaskHandle_t IMUTaskHandle[NUM_IMUS] = { nullptr };
+TaskHandle_t IMUTaskHandle[NUM_IMU] = { nullptr };
 TaskHandle_t FlexTaskHandle[NUM_FLEX] = { nullptr };
-TaskHandle_t CommsSensorsTaskHandle[NUM_IMUS] = { nullptr };
+TaskHandle_t CommsSensorsTaskHandle[NUM_IMU] = { nullptr };
 #endif
 
 SemaphoreHandle_t xBattSemaphore = NULL;
@@ -139,14 +148,19 @@ SemaphoreHandle_t xBattSemaphore = NULL;
 TaskHandle_t BatteryTaskHandle = NULL;
 TaskHandle_t CommsBattTaskHandle = NULL;
 
+#if defined(DEBUG)
+TaskHandle_t MonitorTaskHandle = NULL;
+#endif
+
 /**
  * Generic Function Prototypes
  */
 
 // Setup Function Prototypes
 void i2c_setup();
-void imu_setup();
-void flex_setup();
+void imu_setup(int idx);
+void filter_setup(int idx);
+void flex_setup(int idx);
 void voltage_reader_setup();
 void createSemaphores();
 
@@ -164,9 +178,15 @@ int batt_soc(double voltage);
 void battTask(void *parameter);
 
 // Actuators Function Prototypes
+void battDispTask(void *parameter);
 
 // Generic Function Prototypes
 double radToDeg(double rad);
-#ifdef TORSO_DEVICE
+
+#if defined(TORSO_DEVICE)
 void set_mux_channel(int channel);
+#endif
+
+#if defined(DEBUG)
+void monitorTask(void *parameter);
 #endif

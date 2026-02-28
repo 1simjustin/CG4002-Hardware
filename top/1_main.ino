@@ -8,12 +8,8 @@ void setup() {
   }
   #endif
 
-  // Initialize I2C and IMU
+  // Initialize I2C
   i2c_setup();
-  imu_setup();
-
-  // Initialize Flex Sensor
-  flex_setup();
 
   // Initialize Voltage Reader
   voltage_reader_setup();
@@ -21,11 +17,14 @@ void setup() {
   // Initialize Semaphores
   createSemaphores();
 
+  delay(10);
+
   // Create RTOS Tasks
   #if defined(TORSO_DEVICE) || defined(LEG_DEVICE)
-  for (int i = 0; i < NUM_IMUS; i++) {
-    const char* imuTaskName = ("IMUTask" + String(i)).c_str();
-    xTaskCreatePinnedToCore(
+  for (int i = 0; i < NUM_IMU; i++) {
+    char imuTaskName[20];
+    sprintf(imuTaskName, "IMUTask%d", i);
+    result = xTaskCreatePinnedToCore(
       imuTask,                              // Task function
       imuTaskName,                          // Task name
       STACK_SIZE,                           // Stack size (bytes)
@@ -34,9 +33,15 @@ void setup() {
       &IMUTaskHandle[i],                    // Task handle
       SENSOR_CORE                           // Core 1 for sensors
     );
+    if (result != pdPASS) {
+      Serial.print("Failed to create task: ");
+      Serial.println(imuTaskName);
+    }
 
-    const char* commsTaskName = ("CommsSensorsTask" + String(i)).c_str();
-    xTaskCreatePinnedToCore(
+    #if defined(ENABLE_SENSOR_COMMS)
+    char commsTaskName[25];
+    sprintf(commsTaskName, "SerialSensorsTask%d", i);
+    result = xTaskCreatePinnedToCore(
       serialSensorsTask,                    // Task function
       commsTaskName,                        // Task name
       STACK_SIZE,                           // Stack size (bytes)
@@ -45,11 +50,17 @@ void setup() {
       &CommsSensorsTaskHandle[i],           // Task handle
       COMMS_CORE                            // Core 0 for comms
     );
+    if (result != pdPASS) {
+      Serial.print("Failed to create task: ");
+      Serial.println(commsTaskName);
+    }
+    #endif
   }
 
   for (int i = 0; i < NUM_FLEX; i++) {
-    const char* flexTaskName = ("FlexTask" + String(i)).c_str();
-    xTaskCreatePinnedToCore(
+    char flexTaskName[20];
+    sprintf(flexTaskName, "FlexTask%d", i);
+    result = xTaskCreatePinnedToCore(
       flexTask,                             // Task function
       flexTaskName,                         // Task name
       STACK_SIZE,                           // Stack size (bytes)
@@ -58,10 +69,14 @@ void setup() {
       &FlexTaskHandle[i],                   // Task handle
       SENSOR_CORE                           // Core 1 for sensors
     );
+    if (result != pdPASS) {
+      Serial.print("Failed to create task: ");
+      Serial.println(flexTaskName);
+    }
   }
   #endif
 
-  xTaskCreatePinnedToCore(
+  result = xTaskCreatePinnedToCore(
     battTask,                // Task function
     "BatteryTask",           // Task name
     STACK_SIZE,              // Stack size (bytes)
@@ -70,8 +85,11 @@ void setup() {
     &BatteryTaskHandle,      // Task handle
     SENSOR_CORE              // Core 1 for sensors
   );
+  if (result != pdPASS) {
+    Serial.println("Failed to create task: BatteryTask");
+  }
 
-  xTaskCreatePinnedToCore(
+  result = xTaskCreatePinnedToCore(
     serialBattTask,           // Task function
     "SerialBattTask",         // Task name
     STACK_SIZE,               // Stack size (bytes)
@@ -79,6 +97,34 @@ void setup() {
     BATT_COMMS_TASK_PRIORITY, // Priority
     &CommsBattTaskHandle,     // Task handle
     COMMS_CORE                // Core 0 for comms
+  );
+  if (result != pdPASS) {
+    Serial.println("Failed to create task: SerialBattTask");
+  }
+
+  #if defined(DEBUG)
+  result = xTaskCreatePinnedToCore(
+    monitorTask,              // Task function
+    "MonitorTask",            // Task name
+    STACK_SIZE,               // Stack size (bytes)
+    NULL,                     // Parameters
+    1,                        // Priority (lowest)
+    &MonitorTaskHandle,       // Task handle
+    COMMS_CORE                // Core 0 for comms
+  );
+  if (result != pdPASS) {
+    Serial.println("Failed to create task: MonitorTask");
+  }
+  #endif
+
+  result = xTaskCreatePinnedToCore(
+    battDispTask,             // Task function
+    "BatteryDisplayTask",     // Task name
+    STACK_SIZE,               // Stack size (bytes)
+    NULL,                     // Parameters
+    ACTUATOR_TASK_PRIORITY,   // Priority
+    NULL,                     // Task handle (not needed)
+    SENSOR_CORE               // Core 1 for actuators
   );
 }
 

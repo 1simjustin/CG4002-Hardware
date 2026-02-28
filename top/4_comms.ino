@@ -8,9 +8,9 @@ void serialSensorsTask(void *parameter) {
   // Sensor ID corresponds to IMU ID and Flex ID (if applicable)
   // Chest IMU does not have a corresponding Flex sensor,
   // so we can use the sensor ID to determine whether to print Flex data
+  int sensor_id = (int)parameter;
 
   #if defined(TORSO_DEVICE) || defined(LEG_DEVICE)
-  int sensor_id = (int)parameter;
   for (;;) {
     xSemaphoreTake(xIMUSemaphore[sensor_id], portMAX_DELAY);
     if (sensor_id < NUM_FLEX) {
@@ -49,7 +49,9 @@ void serialBattTask(void *parameter) {
 
     Serial.print("Battery Voltage: ");
     Serial.print(batt_voltage);
-    Serial.println(" V");
+    Serial.print(" V | ");
+    Serial.print(batt_percentage);
+    Serial.println("%");
   }
 }
 

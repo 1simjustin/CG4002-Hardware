@@ -1,12 +1,8 @@
 // FLEX ID 0: Left Arm
 // FLEX ID 1: Right Arm
 
-void flex_setup() {
-  #if defined(TORSO_DEVICE) || defined(LEG_DEVICE)
-  for (int i = 0; i < NUM_FLEX; i++) {
-    pinMode(FLEX_PINS[i], INPUT);
-  }
-  #endif
+void flex_setup(int idx) {
+  pinMode(FLEX_PINS[idx], INPUT);
 }
 
 double processFlexReading(int raw_reading) {
@@ -17,6 +13,7 @@ double processFlexReading(int raw_reading) {
 
 void flexTask(void *parameter) {
   int imu_id = (int)parameter;
+  flex_setup(imu_id);
 
   for (;;) {
     #if defined(TORSO_DEVICE) || defined(LEG_DEVICE)

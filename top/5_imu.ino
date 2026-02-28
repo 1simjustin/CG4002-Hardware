@@ -16,53 +16,44 @@ void set_mux_channel(int channel) {
 }
 #endif
 
-void imu_setup() {
-    #ifdef TORSO_DEVICE
-    // Initialize each IMU by switching the Mux to the correct channel
-    for (int i = 0; i < NUM_IMUS; i++) {
-        set_mux_channel(i);
-        if (!mpu_devices[i].begin(MPU6050_DEVICE_ID, 0x0, &Wire, 0)) {
-            Serial.print("Failed to find MPU6050 chip for IMU ");
-            Serial.println(i);
-            while (1) {
-                delay(50);
-            }
-        }
-        Serial.print("MPU6050 Found for IMU ");
-        Serial.println(i);
+void imu_setup(int idx) {
+  #ifdef TORSO_DEVICE
+  // Initialize each IMU by switching the Mux to the correct channel
+  set_mux_channel(idx);
+  #endif
 
-        mpu_devices[i].setAccelerometerRange(MPU6050_RANGE_8_G);
-        mpu_devices[i].setGyroRange(MPU6050_RANGE_500_DEG);
-        mpu_devices[i].setFilterBandwidth(MPU6050_BAND_21_HZ);
+  if (!mpu_devices[idx].begin(MPU6050_DEVICE_ID)) {
+    Serial.print("Failed to find MPU6050 chip for IMU ");
+    Serial.println(idx);
+    while (1) {
+      delay(50);
     }
+  }
 
-    // After initialization, set Mux back to default (IMU 0)
-    set_mux_channel(0);
-    #endif
+  #ifdef DEBUG
+  Serial.print("MPU6050 Found for IMU ");
+  Serial.println(idx);
+  #endif
 
-    #ifdef LEG_DEVICE
-    if (!mpu_devices[0].begin(MPU6050_DEVICE_ID, 0x70)) {
-        Serial.println("Failed to find MPU6050 chip");
-        while (1) {
-            delay(50);
-        }
-    }
-    Serial.println("MPU6050 Found!");
+  mpu_devices[idx].setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu_devices[idx].setGyroRange(MPU6050_RANGE_500_DEG);
+  mpu_devices[idx].setFilterBandwidth(MPU6050_BAND_21_HZ);
+}
 
-    mpu_devices[0].setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu_devices[0].setGyroRange(MPU6050_RANGE_500_DEG);
-    mpu_devices[0].setFilterBandwidth(MPU6050_BAND_21_HZ);
-    #endif
+void filter_setup(int idx) {
+  filters[idx].begin(IMU_FREQ_HZ);
 }
 
 void imuTask(void *parameter) {
   int imu_id = (int)parameter;
+  imu_setup(imu_id);
+
   for (;;) {
     #ifdef TORSO_DEVICE
     set_mux_channel(imu_id);
     #endif
 
-    mpu_devices[imu_id].getEvent(&a_arr[imu_id], &g_arr[imu_id], NULL);
+    mpu_devices[imu_id].getEvent(&a_arr[imu_id], &g_arr[imu_id], &temp[imu_id]);
 
     x_out[imu_id] = a_arr[imu_id].acceleration.x;
     y_out[imu_id] = a_arr[imu_id].acceleration.y;
@@ -80,9 +71,9 @@ void imuTask(void *parameter) {
     yaw_out[imu_id] = radToDeg(g_arr[imu_id].gyro.z);
     #endif
 
-    #if defined(TORSO_DEVICE) || defined(LEG_DEVICE)
+#if defined(TORSO_DEVICE) || defined(LEG_DEVICE)
     xSemaphoreGive(xIMUSemaphore[imu_id]);
     vTaskDelay(IMU_PERIOD_MS / portTICK_PERIOD_MS);
-    #endif
+#endif
   }
 }

@@ -15,8 +15,9 @@ void set_mux_channel(int channel) {
 void setup()
 {
   Wire.begin();        // Initiate wire library
+  Wire.setClock(400000);
   Serial.begin(115200);  // Initiate serial port 
-  set_mux_channel(0);
+  // set_mux_channel(0);
   WhoAmI();            // Verifies identity of device
 }
 void loop()
