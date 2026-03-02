@@ -28,11 +28,8 @@ int batt_soc(double voltage) {
 void battTask(void *parameter) {
   for (;;) {
     int adc_value = analogRead(BATTERY_PIN);
-    Serial.print("Raw ADC Value: ");
-    Serial.println(adc_value);
     batt_voltage = adc_value * ADC_REF_VOLTAGE * VOLTAGE_DIVIDER_RATIO / ADC_MAX;
 
-    // batt_voltage = max(0.0, min(batt_voltage, BATT_VOLT_MAX));
     batt_percentage = batt_soc(batt_voltage);
 
     xSemaphoreGive(xBattSemaphore);

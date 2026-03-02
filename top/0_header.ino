@@ -14,10 +14,10 @@
 
 // #define DEBUG
 // #define USE_AHRS
-// #define ENABLE_SENSOR_COMMS
+#define ENABLE_SENSOR_COMMS
 
-#define TORSO_DEVICE
-// #define LEG_DEVICE
+// #define TORSO_DEVICE
+#define LEG_DEVICE
 
 // #define DEVICE_ID // For identification in Comms
 
