@@ -16,6 +16,7 @@ void serialSensorsTask(void *parameter) {
     if (sensor_id < NUM_FLEX) {
       xSemaphoreTake(xFlexSemaphore[sensor_id], portMAX_DELAY);
     }
+    xSemaphoreTake(xSerialMutex, portMAX_DELAY);
 
     Serial.print("IMU ID: ");
     Serial.print(sensor_id);
@@ -39,6 +40,7 @@ void serialSensorsTask(void *parameter) {
       Serial.print(flex_output[sensor_id]);
     }
     Serial.println();
+    xSemaphoreGive(xSerialMutex);
   }
   #endif
 }
@@ -46,12 +48,14 @@ void serialSensorsTask(void *parameter) {
 void serialBattTask(void *parameter) {
   for (;;) {
     xSemaphoreTake(xBattSemaphore, portMAX_DELAY);
+    xSemaphoreTake(xSerialMutex, portMAX_DELAY);
 
     Serial.print("Battery Voltage: ");
     Serial.print(batt_voltage);
     Serial.print(" V | ");
     Serial.print(batt_percentage);
     Serial.println("%");
+    xSemaphoreGive(xSerialMutex);
   }
 }
 

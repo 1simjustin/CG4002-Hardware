@@ -16,5 +16,6 @@ void createSemaphores() {
     }
     #endif
 
+    xSerialMutex = xSemaphoreCreateMutex();
     xBattSemaphore = xSemaphoreCreateBinary();
 }
