@@ -14,7 +14,7 @@ void hbDispTask(void *parameter) {
         if (!all_imu_init) {
             blink_state_hb = !blink_state_hb;
             digitalWrite(HB_LED_PIN, blink_state_hb ? HIGH : LOW);
-            vTaskDelay(500 / portTICK_PERIOD_MS);
+            vTaskDelay(HB_BLINK_PERIOD_MS / portTICK_PERIOD_MS);
         } else {
             // If all IMUs are initialized, turn on the LED solid
             digitalWrite(HB_LED_PIN, HIGH);
