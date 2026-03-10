@@ -1,7 +1,4 @@
 #if defined(DEBUG)
-// #include "esp_task_wdt.h"
-// #include "freertos/FreeRTOS.h"
-// #include "freertos/task.h"
 void monitorTask(void *pvParameters) {
     for (;;) {
         // 1. Get the number of tasks currently running

@@ -7,10 +7,10 @@
  * 
  * Key Components:
  * - 2x MPU6050 IMU: Used for motion sensing and orientation detection.
+ * - 2x Flex Sensor: Used for detecting bending or flexing movements.
  * - Analog Battery Voltage Reading: Monitors the battery voltage level.
  * - Battery Display: Visual representation of battery status.
  *   - Read from the Comms server and display only the lowest battery level.
- * - Heartbeat
  * - Wireless Communication: Sends sensor data to the Comms server
  * 
  * Implementation consists of ESP-IDF FreeRTOS tasks for parallel and
