@@ -12,7 +12,7 @@ void monitorTask(void *pvParameters) {
                 uxTaskGetSystemState(pxTaskStatusArray, uxArraySize, NULL);
 
             Serial.println("\n--- Task Monitor ---");
-            Serial.printf("%-16s %-10s %-10s %-10s\n", "Name", "State",
+            Serial.printf("%-20s %-10s %-10s %-10s\n", "Name", "State",
                           "Priority", "StackLeft");
 
             for (UBaseType_t i = 0; i < uxArraySize; i++) {
@@ -39,7 +39,7 @@ void monitorTask(void *pvParameters) {
                 }
 
                 Serial.printf(
-                    "%-16s %-10s %-10d %-10u\n",
+                    "%-20s %-10s %-10d %-10u\n",
                     pxTaskStatusArray[i].pcTaskName, state,
                     (int)pxTaskStatusArray[i].uxCurrentPriority,
                     (unsigned int)pxTaskStatusArray[i].usStackHighWaterMark);

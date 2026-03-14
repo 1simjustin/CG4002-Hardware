@@ -59,6 +59,10 @@
 
 #define NUM_IMU 2
 
+#define CALIBRATION_SAMPLES 10
+#define CALIBRATION_DELAY_MS 1
+#define SLIDING_WINDOW_SIZE 1
+
 // Batt Reader Definitions
 #define BATTERY_PIN A0
 #define ADC_MAX 4095 // 12-bit ADC
@@ -78,6 +82,19 @@
 #define HB_BLINK_PERIOD_MS 500
 
 /**
+ * Helper Structs
+ */
+typedef struct {
+    sensors_event_t acceleration;
+    sensors_event_t gyro;
+} calib_data_t;
+
+typedef struct {
+    double avg_x, avg_y, avg_z;
+    double avg_roll, avg_pitch, avg_yaw;
+} data_out_t;
+
+/**
  * Global Variables
  */
 // IMU Variables
@@ -85,9 +102,15 @@ const uint8_t MPU_DEVICE_IDS[NUM_IMU] = {MPU_UPPER_ADDR, MPU_LOWER_ADDR};
 
 Adafruit_MPU6050 mpu_devices[NUM_IMU];
 Adafruit_Mahony filters[NUM_IMU];
-sensors_event_t a_arr[NUM_IMU], g_arr[NUM_IMU], temp[NUM_IMU];
-double x_out[NUM_IMU], y_out[NUM_IMU], z_out[NUM_IMU];
-double roll_out[NUM_IMU], pitch_out[NUM_IMU], yaw_out[NUM_IMU];
+sensors_event_t a_arr[NUM_IMU][SLIDING_WINDOW_SIZE];
+sensors_event_t g_arr[NUM_IMU][SLIDING_WINDOW_SIZE];
+#if defined(USE_AHRS)
+    double roll_out[NUM_IMU][SLIDING_WINDOW_SIZE];
+    double pitch_out[NUM_IMU][SLIDING_WINDOW_SIZE];
+    double yaw_out[NUM_IMU][SLIDING_WINDOW_SIZE];
+#endif
+sensors_event_t temp[NUM_IMU][SLIDING_WINDOW_SIZE];
+data_out_t data_out[NUM_IMU];
 bool imu_init[NUM_IMU] = {false};
 
 // Battery Variables
@@ -141,6 +164,9 @@ void commsBattTask(void *parameter);
 
 // Sensor Functions
 void imuTask(void *parameter);
+void calibrate(int idx, calib_data_t *calib_data);
+void applyCalibration(sensors_event_t *a, sensors_event_t *g, calib_data_t *calib);
+void windowAvg(int idx, int sz);
 
 // Battery Functions
 int batt_soc(double voltage);
@@ -152,6 +178,7 @@ void hbDispTask(void *parameter);
 
 // General Utility Functions
 double radToDeg(double rad);
+double degToRad(double deg);
 
 #if defined(DEBUG)
 void monitorTask(void *parameter);

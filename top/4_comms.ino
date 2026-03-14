@@ -7,6 +7,20 @@
  */
 
 void serialSensorsTask(void *parameter) {
+    bool any_imu_init = false;
+    while (!any_imu_init) {
+        for (int i = 0; i < NUM_IMU; i++) {
+            if (imu_init[i]) {
+                any_imu_init = true;
+                break;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(100)); // Check every 100ms
+    }
+#if defined(DEBUG)
+    Serial.println("Serial Sensors Task Started");
+#endif
+
     for (;;) {
         for (int i = 0; i < NUM_IMU; i++) {
             if (!imu_init[i]) {
@@ -17,24 +31,29 @@ void serialSensorsTask(void *parameter) {
         xSemaphoreTake(xSerialMutex, portMAX_DELAY);
 
         for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
+            if (!imu_init[sensor_id]) {
+                continue; // Skip if IMU failed to initialize
+            }
+
             Serial.print("IMU ID: ");
             Serial.print(sensor_id);
 
             Serial.print(" | Acceleration (m/s^2): X=");
-            Serial.print(x_out[sensor_id]);
+            Serial.print(data_out[sensor_id].avg_x);
             Serial.print(" Y=");
-            Serial.print(y_out[sensor_id]);
+            Serial.print(data_out[sensor_id].avg_y);
             Serial.print(" Z=");
-            Serial.print(z_out[sensor_id]);
+            Serial.print(data_out[sensor_id].avg_z);
 
             Serial.print(" | IMU Gyro (deg/s): R=");
-            Serial.print(roll_out[sensor_id]);
+            Serial.print(data_out[sensor_id].avg_roll);
             Serial.print(" P=");
-            Serial.print(pitch_out[sensor_id]);
+            Serial.print(data_out[sensor_id].avg_pitch);
             Serial.print(" Y=");
-            Serial.print(yaw_out[sensor_id]);
+            Serial.print(data_out[sensor_id].avg_yaw);
             Serial.println();
         }
+        Serial.println("--------------------------------------------------");
 
         xSemaphoreGive(xSerialMutex);
     }
