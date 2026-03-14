@@ -1,17 +1,11 @@
-/**
- * For now we work with Serial communication,
- * but we will eventually switch to Bluetooth
- * or WiFi for wireless communication.
- *
- * ID 0 is upper, ID 1 is lower
- */
-
 void serialSensorsTask(void *parameter) {
-    bool any_imu_init = false;
-    while (!any_imu_init) {
+    imu_reading_t sensor_readings[NUM_IMU] = {0};
+    bool any_imu_ready = false;
+
+    while (!any_imu_ready) {
         for (int i = 0; i < NUM_IMU; i++) {
             if (imu_init[i]) {
-                any_imu_init = true;
+                any_imu_ready = true;
                 break;
             }
         }
@@ -26,7 +20,7 @@ void serialSensorsTask(void *parameter) {
             if (!imu_init[i]) {
                 continue; // Skip if IMU failed to initialize
             }
-            xSemaphoreTake(xIMUSemaphore[i], portMAX_DELAY);
+            xQueueReceive(xIMUQueue[i], &sensor_readings[i], portMAX_DELAY);
         }
         xSemaphoreTake(xSerialMutex, portMAX_DELAY);
 
@@ -39,18 +33,18 @@ void serialSensorsTask(void *parameter) {
             Serial.print(sensor_id);
 
             Serial.print(" | Acceleration (m/s^2): X=");
-            Serial.print(data_out[sensor_id].avg_x);
+            Serial.print(sensor_readings[sensor_id].x);
             Serial.print(" Y=");
-            Serial.print(data_out[sensor_id].avg_y);
+            Serial.print(sensor_readings[sensor_id].y);
             Serial.print(" Z=");
-            Serial.print(data_out[sensor_id].avg_z);
+            Serial.print(sensor_readings[sensor_id].z);
 
             Serial.print(" | IMU Gyro (deg/s): R=");
-            Serial.print(data_out[sensor_id].avg_roll);
+            Serial.print(sensor_readings[sensor_id].roll);
             Serial.print(" P=");
-            Serial.print(data_out[sensor_id].avg_pitch);
+            Serial.print(sensor_readings[sensor_id].pitch);
             Serial.print(" Y=");
-            Serial.print(data_out[sensor_id].avg_yaw);
+            Serial.print(sensor_readings[sensor_id].yaw);
             Serial.println();
         }
         Serial.println("--------------------------------------------------");
@@ -72,7 +66,3 @@ void serialBattTask(void *parameter) {
         xSemaphoreGive(xSerialMutex);
     }
 }
-
-void commsSensorsTask(void *parameter) {}
-
-void commsBattTask(void *parameter) {}

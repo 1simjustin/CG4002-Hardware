@@ -8,10 +8,10 @@ void i2c_setup() {
 
 void createSemaphores() {
     for (int i = 0; i < NUM_IMU; i++) {
-        xIMUSemaphore[i] = xSemaphoreCreateBinary();
+        xIMUQueue[i] = xQueueCreate(1, sizeof(imu_reading_t));
 #if defined(DEBUG)
-        if (xIMUSemaphore[i] == NULL) {
-            Serial.print("Failed to create IMU semaphore for IMU ");
+        if (xIMUQueue[i] == NULL) {
+            Serial.print("Failed to create IMU queue for IMU ");
             Serial.println(i);
         }
 #endif
