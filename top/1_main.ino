@@ -49,6 +49,20 @@ void setup() {
     }
 
     // Sensor Comms Task
+#if defined(ENABLE_SENSOR_COMMS)
+#if defined(ENABLE_WIFI_COMMS)
+    result = xTaskCreatePinnedToCore(commsSensorsTask,   // Task function
+                                     "CommsSensorsTask", // Task name
+                                     STACK_SIZE,         // Stack size (bytes)
+                                     NULL,               // Parameters
+                                     SENSORS_COMMS_TASK_PRIORITY, // Priority
+                                     &CommsSensorsTaskHandle,     // Task handle
+                                     COMMS_CORE // Core 0 for comms
+    );
+    if (result != pdPASS) {
+        Serial.println("Failed to create task: CommsSensorsTask");
+    }
+#else
     result = xTaskCreatePinnedToCore(serialSensorsTask,  // Task function
                                      "CommsSensorsTask", // Task name
                                      STACK_SIZE,         // Stack size (bytes)
@@ -60,6 +74,8 @@ void setup() {
     if (result != pdPASS) {
         Serial.println("Failed to create task: CommsSensorsTask");
     }
+#endif
+#endif
 
     // Battery Reader Tasks
     result = xTaskCreatePinnedToCore(battTask,           // Task function

@@ -28,16 +28,6 @@ String commandTopic = "command/" + String(player_id) + "/" +
 String sensorTopic = "sensor/" + String(player_id) + "/" + String(node_id) +
                      "/raw"; // Sensor data published by this node
 
-// ================= STATE =================
-// Tracks whether sensor streaming is active
-bool isRunning = false;
-// Sequence counter for sensor packets
-unsigned long sequenceCounter = 0;
-// Interval between sensor packets (milliseconds) — 50Hz
-const unsigned long sendIntervalMs = 20;
-// Statistics
-unsigned long bytesSent = 0;
-
 // ================= GLOBAL OBJECTS =================
 // Secure WiFi client for TLS
 WiFiClientSecure espClient;
