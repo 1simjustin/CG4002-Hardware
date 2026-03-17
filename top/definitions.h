@@ -13,7 +13,9 @@
 #define I2C_SCL_PIN 22
 
 // RTOS Definitions
-#define STACK_SIZE 4096
+#define STACK_SIZE 2048
+#define IMU_STACK_SIZE 8192
+#define COMMS_STACK_SIZE 32768
 
 // Core 1 (Sensors) Task Priorities
 #define IMU_TASK_PRIORITY 3
@@ -29,7 +31,7 @@
 #define MPU_LOWER_ADDR 0x69
 #define RAD_TO_DEG 57.2957795131
 
-#define IMU_FREQ_HZ 150
+#define IMU_FREQ_HZ 50
 #define IMU_PERIOD_MS (1000 / IMU_FREQ_HZ)
 
 #define NUM_IMU 2

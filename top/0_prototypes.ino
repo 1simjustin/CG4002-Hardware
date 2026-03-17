@@ -21,14 +21,16 @@ void serialBattTask(void *parameter);
 void commsSensorsTask(void *parameter);
 void commsBattTask(void *parameter);
 
+void syncNTP();
+unsigned long long getTimestampMs();
 void connectWiFi();
 void connectMQTT();
-void sendSensorPacket(imu_reading_t (*imu_data)[NUM_IMU]);
+void sendSensorPacket(imu_reading_t *imu_data);
 void callback(char *topic, byte *payload, unsigned int length);
 
 // Sensor Functions
 void imuTask(void *parameter);
-imu_reading_t calibrate(Adafruit_MPU6050 mpu);
+imu_reading_t calibrate(Adafruit_MPU6050 &mpu);
 void applyCalibration(sensors_event_t *a, sensors_event_t *g,
                       imu_reading_t *calib);
 imu_reading_t windowAvg(imu_reading_t *readings, int size);

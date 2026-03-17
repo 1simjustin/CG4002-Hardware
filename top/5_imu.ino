@@ -17,7 +17,7 @@ double degToRad(double deg) {
 }
 
 // Return array of 3 sensor_event_t for accel, gyro, temp respectively
-imu_reading_t calibrate(Adafruit_MPU6050 mpu) {
+imu_reading_t calibrate(Adafruit_MPU6050 &mpu) {
     sensors_event_t a_samples[CALIBRATION_SAMPLES];
     sensors_event_t g_samples[CALIBRATION_SAMPLES];
     sensors_event_t t_samples[CALIBRATION_SAMPLES];
@@ -120,9 +120,12 @@ void imuTask(void *parameter) {
         vTaskDelete(NULL); // Delete task if IMU setup fails
     }
 
-    // Setup IMU + Filter
+// Setup IMU + Filter
+#if defined(USE_AHRS)
     filter_setup(imu_id);
+#endif
     imu_reading_t calib_offsets = calibrate(mpu_devices[imu_id]);
+    // imu_reading_t calib_offsets = {0};
     sensors_event_t a, g, temp;
     imu_reading_t imu_buffer[SLIDING_WINDOW_SIZE] = {0};
 

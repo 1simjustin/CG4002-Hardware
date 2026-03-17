@@ -36,7 +36,7 @@ void setup() {
         result =
             xTaskCreatePinnedToCore(imuTask,     // Task function
                                     imuTaskName, // Task name
-                                    STACK_SIZE,  // Stack size (bytes)
+                                    IMU_STACK_SIZE,  // Stack size (bytes)
                                     (void *)i,   // Parameters (pass IMU index)
                                     IMU_TASK_PRIORITY, // Priority
                                     &IMUTaskHandle[i], // Task handle
@@ -53,7 +53,7 @@ void setup() {
 #if defined(ENABLE_WIFI_COMMS)
     result = xTaskCreatePinnedToCore(commsSensorsTask,   // Task function
                                      "CommsSensorsTask", // Task name
-                                     STACK_SIZE,         // Stack size (bytes)
+                                     COMMS_STACK_SIZE,         // Stack size (bytes)
                                      NULL,               // Parameters
                                      SENSORS_COMMS_TASK_PRIORITY, // Priority
                                      &CommsSensorsTaskHandle,     // Task handle
