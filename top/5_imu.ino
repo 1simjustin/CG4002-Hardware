@@ -131,7 +131,7 @@ void imuTask(void *parameter) {
     for (;;) {
         // Try to initialise IMU before starting main loop.
         // if imu bit is 0, try to initialise
-        if ((xEventGroupGetBits(xIMUEventGroup) & (1 << imu_id)) == 0) {
+        if ((xEventGroupGetBits(xSystemEventGroup) & (1 << imu_id)) == 0) {
             imu_success = imu_setup(imu_id);
             // Perform initialisation
             if (imu_success) {
@@ -139,10 +139,10 @@ void imuTask(void *parameter) {
                 filter_setup(imu_id);
 #endif
                 // Set IMU bit to 1 to indicate IMU is initialized
-                xEventGroupSetBits(xIMUEventGroup, (1 << imu_id));
+                xEventGroupSetBits(xSystemEventGroup, (1 << imu_id));
                 // Set calibration bit to 1 to indicate IMU is initialized but
                 // pending calibration
-                xEventGroupSetBits(xIMUEventGroup, calibration_bit);
+                xEventGroupSetBits(xSystemEventGroup, calibration_bit);
             } else {
                 // Wait before retrying
                 vTaskDelay(pdMS_TO_TICKS(100));
@@ -152,7 +152,7 @@ void imuTask(void *parameter) {
 
         // Check if IMU is pending calibration (calibration bit is 1)
         imu_flag_bits = xEventGroupWaitBits(
-            xIMUEventGroup,  // Event group handle
+            xSystemEventGroup,  // Event group handle
             calibration_bit, // Bits to wait for (IMU calibration bit)
             pdTRUE,          // Clear bits on exit
             pdFALSE,         // Wait for any bit (not all)

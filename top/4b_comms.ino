@@ -121,23 +121,23 @@ void callback(char *topic, byte *payload, unsigned int length) {
         unsigned long long start_at = incoming["start_at"] | 0ULL;
         if (start_at > 0) {
             scheduledStartAt = start_at;
-            xEventGroupClearBits(xIMUEventGroup, COMMS_RUNNING_FLAG_BIT);
-            #if defined(DEBUG)
+            xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
+#if defined(DEBUG)
             Serial.printf("START scheduled at %llu (in ~%llums)\n", start_at,
                           start_at - getTimestampMs());
-            #endif
+#endif
         } else {
             // No timestamp — start immediately (fallback)
-            xEventGroupSetBits(xIMUEventGroup, COMMS_RUNNING_FLAG_BIT);
+            xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
             // Set calibration bits to 1 to trigger calibration
-            xEventGroupSetBits(xIMUEventGroup, IMU_CALIB_FLAG_BITS);
+            xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
             scheduledStartAt = 0;
 #if defined(DEBUG)
             Serial.println("START command received (immediate)");
 #endif
         }
     } else if (strcmp(cmd, "stop") == 0) {
-        xEventGroupClearBits(xIMUEventGroup, COMMS_RUNNING_FLAG_BIT);
+        xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
         scheduledStartAt = 0;
 #if defined(DEBUG)
         Serial.println("STOP command received");
@@ -168,15 +168,15 @@ void commsSensorsTask(void *parameter) {
     comms_init();
 
     imu_reading_t sensor_readings[NUM_IMU] = {0};
-    bool data_rdy;
-    BaseType_t imu_updated;
+    EventBits_t expected_imu_bits;
+    uint32_t received_imu_mask;
 
     // Wait until at least any IMU is initialized before starting to send data
-    xEventGroupWaitBits(xIMUEventGroup, // Event Group Handle
-                        IMU_FLAG_BITS,  // Bits to wait for (IMUs initialized)
-                        pdFALSE,        // Do not clear bits on exit
-                        pdFALSE,        // Any bit
-                        portMAX_DELAY   // Wait indefinitely
+    xEventGroupWaitBits(xSystemEventGroup, // Event Group Handle
+                        IMU_FLAG_BITS, // Bits to wait for (IMUs initialized)
+                        pdFALSE,       // Do not clear bits on exit
+                        pdFALSE,       // Any bit
+                        portMAX_DELAY  // Wait indefinitely
     );
 
 #if defined(DEBUG)
@@ -188,8 +188,8 @@ void commsSensorsTask(void *parameter) {
 #endif
 
     for (;;) {
-        Serial.printf("commsSensorsTask stack HWM: %d bytes free\n",
-                      uxTaskGetStackHighWaterMark(NULL));
+        // Serial.printf("commsSensorsTask stack HWM: %d bytes free\n",
+        //               uxTaskGetStackHighWaterMark(NULL));
 
         if (WiFi.status() != WL_CONNECTED) {
 #if defined(DEBUG)
@@ -205,42 +205,48 @@ void commsSensorsTask(void *parameter) {
 
         client.loop();
 
-        if (xEventGroupGetBits(xIMUEventGroup) & COMMS_RUNNING_FLAG_BIT == 0) {
+        // Check if isRunning bit is set
+        if (xEventGroupGetBits(xSystemEventGroup) &
+            COMMS_RUNNING_FLAG_BIT == 0) {
+            // If not running, check if a scheduled start time has been reached
             if (scheduledStartAt > 0 && getTimestampMs() >= scheduledStartAt) {
-                xEventGroupSetBits(xIMUEventGroup, COMMS_RUNNING_FLAG_BIT);
+                xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
                 scheduledStartAt = 0;
 #if defined(DEBUG)
                 Serial.println("Scheduled start triggered");
 #endif
-            } else {
-                // Sleep briefly to avoid busy loop
-                vTaskDelay(pdMS_TO_TICKS(100));
-                // Skip sending if not running
+            }
+            // Sleep briefly to avoid busy loop when not running
+            // We also skip sending if not running
+            else {
+                vTaskDelay(pdMS_TO_TICKS(50));
                 continue;
             }
         }
 
         // Wait for new data from all initialized IMUs
-        data_rdy = true;
+        expected_imu_bits =
+            xEventGroupGetBits(xSystemEventGroup) & IMU_FLAG_BITS;
+        received_imu_mask = 0;
+
         for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
-            // Skip if IMU failed to initialize
-            if ((xEventGroupGetBits(xIMUEventGroup) & (1 << sensor_id))) {
-                imu_updated = xQueueReceive(
-                    xIMUQueue[sensor_id],        // Queue handle
-                    &sensor_readings[sensor_id], // Buffer to receive data
-                    0                            // Non-blocking
-                );
-                if (imu_updated != pdTRUE) {
-                    data_rdy = false;
-                    break;
+            // Check if IMU is initialized (bit is 1)
+            if (expected_imu_bits & (1 << sensor_id)) {
+                // Try to pull data from its queue
+                if (xQueueReceive(xIMUQueue[sensor_id],
+                                  &sensor_readings[sensor_id], 0) == pdTRUE) {
+                    // Set this IMU bit in our local tracker
+                    received_imu_mask |= (1 << sensor_id);
                 }
-            } else {
-                // If IMU failed to initialize, set readings to 0
-                sensor_readings[sensor_id] = {0};
+            }
+            // If not initialised
+            else {
+                memset(&sensor_readings[sensor_id], 0, sizeof(sensor_readings[sensor_id]));
             }
         }
 
-        if (data_rdy) {
+        // Send data if all initialized IMUs have new data
+        if (expected_imu_bits > 0 && received_imu_mask == expected_imu_bits) {
             sendSensorPacket(sensor_readings);
         }
     }

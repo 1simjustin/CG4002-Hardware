@@ -3,7 +3,7 @@ void hbDispTask(void *parameter) {
     EventBits_t imu_init_bits;
 
     for (;;) {
-        imu_init_bits = xEventGroupGetBits(xIMUEventGroup);
+        imu_init_bits = xEventGroupGetBits(xSystemEventGroup);
         // If any IMU is not initialized, blink at 1Hz to indicate waiting for IMU initialization
         if ((imu_init_bits & IMU_FLAG_BITS) != IMU_FLAG_BITS) {
             blink_state_hb = !blink_state_hb;

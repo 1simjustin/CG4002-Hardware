@@ -2,11 +2,11 @@ void serialSensorsTask(void *parameter) {
     imu_reading_t sensor_readings[NUM_IMU] = {0};
 
     // Wait until at least any IMU is initialized before starting to send data
-    xEventGroupWaitBits(xIMUEventGroup, // Event Group Handle
-                        IMU_FLAG_BITS,  // Bits to wait for (IMUs initialized)
-                        pdFALSE,        // Do not clear bits on exit
-                        pdFALSE,        // Any bit
-                        portMAX_DELAY   // Wait indefinitely
+    xEventGroupWaitBits(xSystemEventGroup, // Event Group Handle
+                        IMU_FLAG_BITS, // Bits to wait for (IMUs initialized)
+                        pdFALSE,       // Do not clear bits on exit
+                        pdFALSE,       // Any bit
+                        portMAX_DELAY  // Wait indefinitely
     );
 
 #if defined(DEBUG)
@@ -16,7 +16,7 @@ void serialSensorsTask(void *parameter) {
     for (;;) {
         for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
             // Skip if IMU failed to initialize
-            if (xEventGroupGetBits(xIMUEventGroup) & (1 << sensor_id)) {
+            if (xEventGroupGetBits(xSystemEventGroup) & (1 << sensor_id)) {
                 xQueueReceive(
                     xIMUQueue[sensor_id],        // Queue handle
                     &sensor_readings[sensor_id], // Buffer to receive data
@@ -31,7 +31,8 @@ void serialSensorsTask(void *parameter) {
 
         for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
             // Skip if IMU failed to initialize
-            if ((xEventGroupGetBits(xIMUEventGroup) & (1 << sensor_id)) == 0) {
+            if ((xEventGroupGetBits(xSystemEventGroup) & (1 << sensor_id)) ==
+                0) {
                 continue;
             }
 

@@ -9,7 +9,7 @@ void i2c_setup() {
 void createSemaphores() {
     // IMU Event Group
     // Null checks not needed for static event groups as they are statically allocated
-    xIMUEventGroup = xEventGroupCreateStatic(&xIMUEventGroupBuffer);
+    xSystemEventGroup = xEventGroupCreateStatic(&xSystemEventGroupBuffer);
     
     // IMU Data Queues
     for (int i = 0; i < NUM_IMU; i++) {

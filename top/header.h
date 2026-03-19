@@ -72,8 +72,8 @@ TaskHandle_t CommsSensorsTaskHandle = NULL;
 // Bit 0 to NUM_IMU-1 indicate if IMU is initialized
 // Bit NUM_IMU to NUM_IMU*2-1 indicate if IMU is pending calibration
 // Bit NUM_IMU*2 indicates if system is running (after scheduled start time)
-EventGroupHandle_t xIMUEventGroup = NULL;
-StaticEventGroup_t xIMUEventGroupBuffer;
+EventGroupHandle_t xSystemEventGroup = NULL;
+StaticEventGroup_t xSystemEventGroupBuffer;
 
 SemaphoreHandle_t xBattSemaphore = NULL;
 
