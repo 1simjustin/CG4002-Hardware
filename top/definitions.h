@@ -13,9 +13,9 @@
 #define I2C_SCL_PIN 22
 
 // RTOS Definitions
-#define STACK_SIZE 2048
+#define STACK_SIZE 1024
 #define IMU_STACK_SIZE 8192
-#define COMMS_STACK_SIZE 32768
+#define COMMS_STACK_SIZE 16384
 
 // Core 1 (Sensors) Task Priorities
 #define IMU_TASK_PRIORITY 3
@@ -35,6 +35,11 @@
 #define IMU_PERIOD_MS (1000 / IMU_FREQ_HZ)
 
 #define NUM_IMU 2
+// Bits 0 to NUM_IMU-1 for IMU initialization status
+#define IMU_FLAG_BITS ((1 << NUM_IMU) - 1)
+// Bits NUM_IMU to NUM_IMU*2-1 for IMU calibration status
+#define IMU_CALIB_FLAG_BITS IMU_FLAG_BITS << NUM_IMU
+#define COMMS_RUNNING_FLAG_BIT (1 << (NUM_IMU * 2))
 
 #define CALIBRATION_SAMPLES 10
 #define CALIBRATION_DELAY_MS 1

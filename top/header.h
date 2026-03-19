@@ -15,7 +15,7 @@
  * toggled for different build configurations via comments.
  */
 
-// #define DEBUG
+#define DEBUG
 // #define USE_AHRS
 #define ENABLE_SENSOR_COMMS
 #define ENABLE_WIFI_COMMS
@@ -28,7 +28,7 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
-#include "0_definitions.h"
+#include "definitions.h"
 
 /**
  * Helper Structs
@@ -47,7 +47,6 @@ const uint8_t MPU_DEVICE_IDS[NUM_IMU] = {MPU_UPPER_ADDR, MPU_LOWER_ADDR};
 
 Adafruit_MPU6050 mpu_devices[NUM_IMU];
 Adafruit_Mahony filters[NUM_IMU];
-bool imu_init[NUM_IMU] = {false};
 
 // Battery Variables
 double batt_voltage;
@@ -67,6 +66,14 @@ BaseType_t result;
 QueueHandle_t xIMUQueue[NUM_IMU] = {nullptr};
 TaskHandle_t IMUTaskHandle[NUM_IMU] = {nullptr};
 TaskHandle_t CommsSensorsTaskHandle = NULL;
+
+// Event Group is fixed 24 bits
+// Event Group is used as static so that it is precompiled
+// Bit 0 to NUM_IMU-1 indicate if IMU is initialized
+// Bit NUM_IMU to NUM_IMU*2-1 indicate if IMU is pending calibration
+// Bit NUM_IMU*2 indicates if system is running (after scheduled start time)
+EventGroupHandle_t xIMUEventGroup = NULL;
+StaticEventGroup_t xIMUEventGroupBuffer;
 
 SemaphoreHandle_t xBattSemaphore = NULL;
 

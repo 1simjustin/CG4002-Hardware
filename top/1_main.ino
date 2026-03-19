@@ -117,19 +117,19 @@ void setup() {
     }
 
     // Monitor Task (Debug Only)
-#if defined(DEBUG)
-    result = xTaskCreatePinnedToCore(monitorTask,        // Task function
-                                     "MonitorTask",      // Task name
-                                     STACK_SIZE,         // Stack size (bytes)
-                                     NULL,               // Parameters
-                                     1,                  // Priority (lowest)
-                                     &MonitorTaskHandle, // Task handle
-                                     COMMS_CORE          // Core 0 for comms
-    );
-    if (result != pdPASS) {
-        Serial.println("Failed to create task: MonitorTask");
-    }
-#endif
+// #if defined(DEBUG)
+//     result = xTaskCreatePinnedToCore(monitorTask,        // Task function
+//                                      "MonitorTask",      // Task name
+//                                      STACK_SIZE,         // Stack size (bytes)
+//                                      NULL,               // Parameters
+//                                      1,                  // Priority (lowest)
+//                                      &MonitorTaskHandle, // Task handle
+//                                      COMMS_CORE          // Core 0 for comms
+//     );
+//     if (result != pdPASS) {
+//         Serial.println("Failed to create task: MonitorTask");
+//     }
+// #endif
 }
 
 void loop() {

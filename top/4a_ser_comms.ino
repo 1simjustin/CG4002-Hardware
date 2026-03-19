@@ -1,32 +1,38 @@
 void serialSensorsTask(void *parameter) {
     imu_reading_t sensor_readings[NUM_IMU] = {0};
-    bool any_imu_ready = false;
 
-    while (!any_imu_ready) {
-        for (int i = 0; i < NUM_IMU; i++) {
-            if (imu_init[i]) {
-                any_imu_ready = true;
-                break;
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(100)); // Check every 100ms
-    }
+    // Wait until at least any IMU is initialized before starting to send data
+    xEventGroupWaitBits(xIMUEventGroup, // Event Group Handle
+                        IMU_FLAG_BITS,  // Bits to wait for (IMUs initialized)
+                        pdFALSE,        // Do not clear bits on exit
+                        pdFALSE,        // Any bit
+                        portMAX_DELAY   // Wait indefinitely
+    );
+
 #if defined(DEBUG)
     Serial.println("Serial Sensors Task Started");
 #endif
 
     for (;;) {
-        for (int i = 0; i < NUM_IMU; i++) {
-            if (!imu_init[i]) {
-                continue; // Skip if IMU failed to initialize
+        for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
+            // Skip if IMU failed to initialize
+            if (xEventGroupGetBits(xIMUEventGroup) & (1 << sensor_id)) {
+                xQueueReceive(
+                    xIMUQueue[sensor_id],        // Queue handle
+                    &sensor_readings[sensor_id], // Buffer to receive data
+                    portMAX_DELAY                // Wait indefinitely
+                );
+            } else {
+                // If IMU failed to initialize, set readings to 0
+                sensor_readings[sensor_id] = {0};
             }
-            xQueueReceive(xIMUQueue[i], &sensor_readings[i], portMAX_DELAY);
         }
         xSemaphoreTake(xSerialMutex, portMAX_DELAY);
 
         for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
-            if (!imu_init[sensor_id]) {
-                continue; // Skip if IMU failed to initialize
+            // Skip if IMU failed to initialize
+            if ((xEventGroupGetBits(xIMUEventGroup) & (1 << sensor_id)) == 0) {
+                continue;
             }
 
             Serial.print("IMU ID: ");

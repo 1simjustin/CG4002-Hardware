@@ -86,8 +86,10 @@ imu_reading_t windowAvg(imu_reading_t *readings, int size) {
 
 bool imu_setup(int idx) {
     if (!mpu_devices[idx].begin(MPU_DEVICE_IDS[idx])) {
+#if defined(DEBUG)
         Serial.print("Failed to find MPU6050 chip for IMU ");
         Serial.println(idx);
+#endif
         return false;
     }
 
@@ -114,31 +116,57 @@ void filter_setup(int idx) {
 
 void imuTask(void *parameter) {
     int imu_id = (int)parameter;
-    bool imu_success = imu_setup(imu_id);
-    if (!imu_success) {
-        imu_init[imu_id] = false;
-        vTaskDelete(NULL); // Delete task if IMU setup fails
-    }
 
-// Setup IMU + Filter
-#if defined(USE_AHRS)
-    filter_setup(imu_id);
-#endif
+    bool imu_success;
+    EventBits_t imu_flag_bits;
+    const EventBits_t calibration_bit = (1 << (imu_id + NUM_IMU));
+
     imu_reading_t calib_offsets = calibrate(mpu_devices[imu_id]);
-    // imu_reading_t calib_offsets = {0};
     sensors_event_t a, g, temp;
     imu_reading_t imu_buffer[SLIDING_WINDOW_SIZE] = {0};
 
     int window_idx = 0;
     int sz = 0;
-    imu_init[imu_id] = true;
-
-#if defined(DEBUG)
-    Serial.print("Calibration complete for IMU ");
-    Serial.println(imu_id);
-#endif
 
     for (;;) {
+        // Try to initialise IMU before starting main loop.
+        // if imu bit is 0, try to initialise
+        if ((xEventGroupGetBits(xIMUEventGroup) & (1 << imu_id)) == 0) {
+            imu_success = imu_setup(imu_id);
+            // Perform initialisation
+            if (imu_success) {
+#if defined(USE_AHRS)
+                filter_setup(imu_id);
+#endif
+                // Set IMU bit to 1 to indicate IMU is initialized
+                xEventGroupSetBits(xIMUEventGroup, (1 << imu_id));
+                // Set calibration bit to 1 to indicate IMU is initialized but
+                // pending calibration
+                xEventGroupSetBits(xIMUEventGroup, calibration_bit);
+            } else {
+                // Wait before retrying
+                vTaskDelay(pdMS_TO_TICKS(100));
+                continue;
+            }
+        }
+
+        // Check if IMU is pending calibration (calibration bit is 1)
+        imu_flag_bits = xEventGroupWaitBits(
+            xIMUEventGroup,  // Event group handle
+            calibration_bit, // Bits to wait for (IMU calibration bit)
+            pdTRUE,          // Clear bits on exit
+            pdFALSE,         // Wait for any bit (not all)
+            0                // Non-blocking
+        );
+        // If calibration bit was set, perform calibration
+        if (imu_flag_bits & calibration_bit) {
+            calib_offsets = calibrate(mpu_devices[imu_id]);
+#if defined(DEBUG)
+            Serial.print("Calibration complete for IMU ");
+            Serial.println(imu_id);
+#endif
+        }
+
         mpu_devices[imu_id].getEvent(&a, &g, &temp);
         applyCalibration(&a, &g, &calib_offsets);
 

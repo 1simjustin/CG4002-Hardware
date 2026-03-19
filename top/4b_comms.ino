@@ -1,6 +1,5 @@
 // ================= STATE =================
 // Tracks whether sensor streaming is active
-bool isRunning = false;
 unsigned long long scheduledStartAt = 0;
 // Timing for periodic sending
 unsigned long lastSendTime = 0;
@@ -14,7 +13,7 @@ void syncNTP() {
     Serial.print("Syncing NTP time");
     struct tm timeinfo;
     while (!getLocalTime(&timeinfo) || timeinfo.tm_year < 100) {
-        delay(500);
+        vTaskDelay(pdMS_TO_TICKS(500));
         Serial.print(".");
     }
     Serial.println("\nNTP time synced");
@@ -32,7 +31,7 @@ void connectWiFi() {
     WiFi.begin(ssid, password);
     Serial.print("Connecting to WiFi");
     while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
+        vTaskDelay(pdMS_TO_TICKS(500));
         Serial.print(".");
     }
     Serial.println("\nWiFi connected");
@@ -42,11 +41,12 @@ void connectWiFi() {
 // ================= MQTT CONNECTION =================
 void connectMQTT() {
     // Create unique client ID
-    String clientId = String(player_id) + "_" + String(node_id);
+    char clientId[32];
+    snprintf(clientId, sizeof(clientId), "%s_%s", player_id, node_id);
     // Keep attempting to connect until successful
     while (!client.connected()) {
         Serial.print("Connecting to MQTT...");
-        if (client.connect(clientId.c_str())) {
+        if (client.connect(clientId)) {
             Serial.println("connected");
             // Subscribe to commands from server
             client.subscribe(commandTopic.c_str());   // command/player/node
@@ -62,7 +62,7 @@ void connectMQTT() {
             Serial.print("failed, rc=");
             Serial.print(client.state());
             Serial.println(" retrying...");
-            delay(1000);
+            vTaskDelay(pdMS_TO_TICKS(1000));
         }
     }
 }
@@ -72,16 +72,6 @@ void sendSensorPacket(imu_reading_t *imu_data) {
     StaticJsonDocument<512> doc;
     unsigned long long ts = getTimestampMs();
     doc["sequence"] = (uint64_t)ts;
-    // Decide body part names automatically
-    String part1;
-    String part2;
-    if (String(node_id).indexOf("arm") >= 0) {
-        part1 = "_upper_arm";
-        part2 = "_forearm";
-    } else {
-        part1 = "_thigh";
-        part2 = "_shin";
-    }
 
     // ================= IMU 1 =================
     JsonObject imu1 = doc.createNestedObject(part1);
@@ -131,19 +121,27 @@ void callback(char *topic, byte *payload, unsigned int length) {
         unsigned long long start_at = incoming["start_at"] | 0ULL;
         if (start_at > 0) {
             scheduledStartAt = start_at;
-            isRunning = false;
+            xEventGroupClearBits(xIMUEventGroup, COMMS_RUNNING_FLAG_BIT);
+            #if defined(DEBUG)
             Serial.printf("START scheduled at %llu (in ~%llums)\n", start_at,
                           start_at - getTimestampMs());
+            #endif
         } else {
             // No timestamp — start immediately (fallback)
-            isRunning = true;
+            xEventGroupSetBits(xIMUEventGroup, COMMS_RUNNING_FLAG_BIT);
+            // Set calibration bits to 1 to trigger calibration
+            xEventGroupSetBits(xIMUEventGroup, IMU_CALIB_FLAG_BITS);
             scheduledStartAt = 0;
+#if defined(DEBUG)
             Serial.println("START command received (immediate)");
+#endif
         }
     } else if (strcmp(cmd, "stop") == 0) {
-        isRunning = false;
+        xEventGroupClearBits(xIMUEventGroup, COMMS_RUNNING_FLAG_BIT);
         scheduledStartAt = 0;
+#if defined(DEBUG)
         Serial.println("STOP command received");
+#endif
     }
 }
 
@@ -170,19 +168,16 @@ void commsSensorsTask(void *parameter) {
     comms_init();
 
     imu_reading_t sensor_readings[NUM_IMU] = {0};
-    bool any_imu_ready;
+    bool data_rdy;
+    BaseType_t imu_updated;
 
-    // Wait until IMUs are initialized before starting to send data
-    do {
-        any_imu_ready = false;
-        for (int i = 0; i < NUM_IMU; i++) {
-            if (imu_init[i]) {
-                any_imu_ready = true;
-                break;
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(100)); // Check every 100ms
-    } while (!any_imu_ready);
+    // Wait until at least any IMU is initialized before starting to send data
+    xEventGroupWaitBits(xIMUEventGroup, // Event Group Handle
+                        IMU_FLAG_BITS,  // Bits to wait for (IMUs initialized)
+                        pdFALSE,        // Do not clear bits on exit
+                        pdFALSE,        // Any bit
+                        portMAX_DELAY   // Wait indefinitely
+    );
 
 #if defined(DEBUG)
     Serial.println("Serial Sensors Task Started");
@@ -193,6 +188,9 @@ void commsSensorsTask(void *parameter) {
 #endif
 
     for (;;) {
+        Serial.printf("commsSensorsTask stack HWM: %d bytes free\n",
+                      uxTaskGetStackHighWaterMark(NULL));
+
         if (WiFi.status() != WL_CONNECTED) {
 #if defined(DEBUG)
             Serial.println("WiFi lost. Reconnecting...");
@@ -207,9 +205,9 @@ void commsSensorsTask(void *parameter) {
 
         client.loop();
 
-        if (!isRunning) {
+        if (xEventGroupGetBits(xIMUEventGroup) & COMMS_RUNNING_FLAG_BIT == 0) {
             if (scheduledStartAt > 0 && getTimestampMs() >= scheduledStartAt) {
-                isRunning = true;
+                xEventGroupSetBits(xIMUEventGroup, COMMS_RUNNING_FLAG_BIT);
                 scheduledStartAt = 0;
 #if defined(DEBUG)
                 Serial.println("Scheduled start triggered");
@@ -223,14 +221,22 @@ void commsSensorsTask(void *parameter) {
         }
 
         // Wait for new data from all initialized IMUs
-        bool data_rdy = true;
-        for (int i = 0; i < NUM_IMU; i++) {
-            if (!imu_init[i]) {
-                continue; // Skip if IMU failed to initialize
-            }
-            if (xQueueReceive(xIMUQueue[i], &sensor_readings[i], 0) != pdTRUE) {
-                data_rdy = false;
-                break;
+        data_rdy = true;
+        for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
+            // Skip if IMU failed to initialize
+            if ((xEventGroupGetBits(xIMUEventGroup) & (1 << sensor_id))) {
+                imu_updated = xQueueReceive(
+                    xIMUQueue[sensor_id],        // Queue handle
+                    &sensor_readings[sensor_id], // Buffer to receive data
+                    0                            // Non-blocking
+                );
+                if (imu_updated != pdTRUE) {
+                    data_rdy = false;
+                    break;
+                }
+            } else {
+                // If IMU failed to initialize, set readings to 0
+                sensor_readings[sensor_id] = {0};
             }
         }
 

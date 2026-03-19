@@ -7,6 +7,11 @@ void i2c_setup() {
 }
 
 void createSemaphores() {
+    // IMU Event Group
+    // Null checks not needed for static event groups as they are statically allocated
+    xIMUEventGroup = xEventGroupCreateStatic(&xIMUEventGroupBuffer);
+    
+    // IMU Data Queues
     for (int i = 0; i < NUM_IMU; i++) {
         xIMUQueue[i] = xQueueCreate(1, sizeof(imu_reading_t));
 #if defined(DEBUG)
@@ -17,6 +22,7 @@ void createSemaphores() {
 #endif
     }
 
+    // Battery Semaphore
     xBattSemaphore = xSemaphoreCreateBinary();
 #if defined(DEBUG)
     if (xBattSemaphore == NULL) {
@@ -24,6 +30,7 @@ void createSemaphores() {
     }
 #endif
 
+    // Serial Mutex
     xSerialMutex = xSemaphoreCreateMutex();
 #if defined(DEBUG)
     if (xSerialMutex == NULL) {
