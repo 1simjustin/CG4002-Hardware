@@ -121,8 +121,8 @@ void imuTask(void *parameter) {
     EventBits_t imu_flag_bits;
     const EventBits_t calibration_bit = (1 << (imu_id + NUM_IMU));
 
-    imu_reading_t calib_offsets = calibrate(mpu_devices[imu_id]);
-    sensors_event_t a, g, temp;
+    sensors_event_t a = {0}, g = {0}, temp = {0};
+    imu_reading_t calib_offsets = {0};
     imu_reading_t imu_buffer[SLIDING_WINDOW_SIZE] = {0};
 
     int window_idx = 0;
@@ -152,11 +152,11 @@ void imuTask(void *parameter) {
 
         // Check if IMU is pending calibration (calibration bit is 1)
         imu_flag_bits = xEventGroupWaitBits(
-            xSystemEventGroup,  // Event group handle
-            calibration_bit, // Bits to wait for (IMU calibration bit)
-            pdTRUE,          // Clear bits on exit
-            pdFALSE,         // Wait for any bit (not all)
-            0                // Non-blocking
+            xSystemEventGroup, // Event group handle
+            calibration_bit,   // Bits to wait for (IMU calibration bit)
+            pdTRUE,            // Clear bits on exit
+            pdFALSE,           // Wait for any bit (not all)
+            0                  // Non-blocking
         );
         // If calibration bit was set, perform calibration
         if (imu_flag_bits & calibration_bit) {
@@ -196,4 +196,9 @@ void imuTask(void *parameter) {
         xQueueOverwrite(xIMUQueue[imu_id], &sensor_result);
         vTaskDelay(pdMS_TO_TICKS(1000 / IMU_FREQ_HZ));
     }
+
+    // On closing of task, clear IMU initialized bit and delete task (not
+    // expected to reach here)
+    xEventGroupClearBits(xSystemEventGroup, (1 << imu_id));
+    vTaskDelete(NULL);
 }

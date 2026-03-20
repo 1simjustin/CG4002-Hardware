@@ -15,7 +15,7 @@
  * toggled for different build configurations via comments.
  */
 
-#define DEBUG
+// #define DEBUG
 // #define USE_AHRS
 #define ENABLE_SENSOR_COMMS
 #define ENABLE_WIFI_COMMS

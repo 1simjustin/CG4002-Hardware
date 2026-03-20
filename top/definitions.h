@@ -5,6 +5,10 @@
  * Definitions
  */
 
+// User Configurations
+#define PLAYER "shifu"
+#define NODE "left_arm"
+
 // HW Definitions
 #define COMMS_CORE 0
 #define SENSOR_CORE 1
@@ -25,6 +29,8 @@
 // Core 0 (Comms) Task Priorities
 #define SENSORS_COMMS_TASK_PRIORITY 2
 #define BATT_COMMS_TASK_PRIORITY 1
+
+#define COMMS_TASK_DELAY_MS 10
 
 // IMU Definitions
 #define MPU_UPPER_ADDR 0x68

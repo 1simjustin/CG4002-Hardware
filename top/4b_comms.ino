@@ -29,12 +29,16 @@ unsigned long long getTimestampMs() {
 // ================= WIFI CONNECTION =================
 void connectWiFi() {
     WiFi.begin(ssid, password);
-    Serial.print("Connecting to WiFi");
+#if defined(DEBUG)
+    Serial.println("Connecting to WiFi");
+#endif
     while (WiFi.status() != WL_CONNECTED) {
         vTaskDelay(pdMS_TO_TICKS(500));
         Serial.print(".");
     }
+#if defined(DEBUG)
     Serial.println("\nWiFi connected");
+#endif
     syncNTP();
 }
 
@@ -45,7 +49,7 @@ void connectMQTT() {
     snprintf(clientId, sizeof(clientId), "%s_%s", player_id, node_id);
     // Keep attempting to connect until successful
     while (!client.connected()) {
-        Serial.print("Connecting to MQTT...");
+        Serial.println("Connecting to MQTT...");
         if (client.connect(clientId)) {
             Serial.println("connected");
             // Subscribe to commands from server
@@ -116,9 +120,12 @@ void callback(char *topic, byte *payload, unsigned int length) {
     const char *cmd = incoming["command"];
     if (!cmd)
         return;
+
     // Handle commands
+    // Start Command
     if (strcmp(cmd, "start") == 0) {
         unsigned long long start_at = incoming["start_at"] | 0ULL;
+        // Wait for scheduled start time if provided
         if (start_at > 0) {
             scheduledStartAt = start_at;
             xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
@@ -126,8 +133,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
             Serial.printf("START scheduled at %llu (in ~%llums)\n", start_at,
                           start_at - getTimestampMs());
 #endif
-        } else {
-            // No timestamp — start immediately (fallback)
+        }
+        // No timestamp — start immediately (fallback)
+        else {
             xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
             // Set calibration bits to 1 to trigger calibration
             xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
@@ -136,7 +144,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
             Serial.println("START command received (immediate)");
 #endif
         }
-    } else if (strcmp(cmd, "stop") == 0) {
+    }
+    // Stop command
+    else if (strcmp(cmd, "stop") == 0) {
         xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
         scheduledStartAt = 0;
 #if defined(DEBUG)
@@ -161,7 +171,6 @@ void comms_init() {
 /**
  * RTOS TASKS
  */
-
 void commsSensorsTask(void *parameter) {
     // Brief delay to allow hardware to initialize
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -188,9 +197,6 @@ void commsSensorsTask(void *parameter) {
 #endif
 
     for (;;) {
-        // Serial.printf("commsSensorsTask stack HWM: %d bytes free\n",
-        //               uxTaskGetStackHighWaterMark(NULL));
-
         if (WiFi.status() != WL_CONNECTED) {
 #if defined(DEBUG)
             Serial.println("WiFi lost. Reconnecting...");
@@ -206,8 +212,8 @@ void commsSensorsTask(void *parameter) {
         client.loop();
 
         // Check if isRunning bit is set
-        if (xEventGroupGetBits(xSystemEventGroup) &
-            COMMS_RUNNING_FLAG_BIT == 0) {
+        if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) ==
+            0) {
             // If not running, check if a scheduled start time has been reached
             if (scheduledStartAt > 0 && getTimestampMs() >= scheduledStartAt) {
                 xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
@@ -219,9 +225,15 @@ void commsSensorsTask(void *parameter) {
             // Sleep briefly to avoid busy loop when not running
             // We also skip sending if not running
             else {
-                vTaskDelay(pdMS_TO_TICKS(50));
+                vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
                 continue;
             }
+        }
+
+        // Return if COMMS_RUNNING_FLAG_BIT is not set
+        if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) ==
+            0) {
+            continue;
         }
 
         // Wait for new data from all initialized IMUs
@@ -241,7 +253,8 @@ void commsSensorsTask(void *parameter) {
             }
             // If not initialised
             else {
-                memset(&sensor_readings[sensor_id], 0, sizeof(sensor_readings[sensor_id]));
+                memset(&sensor_readings[sensor_id], 0,
+                       sizeof(sensor_readings[sensor_id]));
             }
         }
 
@@ -249,6 +262,9 @@ void commsSensorsTask(void *parameter) {
         if (expected_imu_bits > 0 && received_imu_mask == expected_imu_bits) {
             sendSensorPacket(sensor_readings);
         }
+
+        // Sleep briefly to yield to other tasks
+        vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
     }
 }
 

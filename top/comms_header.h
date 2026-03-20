@@ -7,19 +7,16 @@
 #include <WiFiClientSecure.h>
 
 // ================= CONFIG =================
-// WiFi credentials
-const char *ssid = "AndroidAP66E5";
-const char *password = "ohfa7243";
 // MQTT broker details
 const char *mqtt_broker = "54.79.62.237";
 const int mqtt_port = 8883;
 // Node ID identifies this device
 // Example values:
 // "left_arm", "right_arm", "left_leg", "right_leg"
-const char *node_id = "right_arm";
+const char *node_id = NODE;
 // Player ID identifies which player the system belongs to (can be "shifu" or
 // "student")
-const char *player_id = "shifu";
+const char *player_id = PLAYER;
 
 // Decide body part names automatically
 // Set part 1 to "upper_arm" or "thigh" and part 2 to "forearm" or "shin" based on node_id
