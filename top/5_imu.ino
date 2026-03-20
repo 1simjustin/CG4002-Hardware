@@ -167,6 +167,13 @@ void imuTask(void *parameter) {
 #endif
         }
 
+        // Check if system is running (running bit is 1) before reading sensors
+        if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) == 0) {
+            // If not running, wait before checking again
+            vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
+            continue;
+        }
+
         mpu_devices[imu_id].getEvent(&a, &g, &temp);
         applyCalibration(&a, &g, &calib_offsets);
 
@@ -194,7 +201,7 @@ void imuTask(void *parameter) {
         // Compute sliding window average and send to queue
         imu_reading_t sensor_result = windowAvg(imu_buffer, sz);
         xQueueOverwrite(xIMUQueue[imu_id], &sensor_result);
-        vTaskDelay(pdMS_TO_TICKS(1000 / IMU_FREQ_HZ));
+        vTaskDelay(pdMS_TO_TICKS(IMU_PERIOD_MS));
     }
 
     // On closing of task, clear IMU initialized bit and delete task (not

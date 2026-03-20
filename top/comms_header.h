@@ -20,8 +20,8 @@ const char *player_id = PLAYER;
 
 // Decide body part names automatically
 // Set part 1 to "upper_arm" or "thigh" and part 2 to "forearm" or "shin" based on node_id
-const char* part1 = (String(node_id).indexOf("arm") >= 0) ? "_upper_arm" : "_thigh";
-const char* part2 = (String(node_id).indexOf("arm") >= 0) ? "_forearm"   : "_shin";
+const String part1 = String(NODE) + ((String(node_id).indexOf("arm") >= 0) ? "_upper_arm" : "_thigh");
+const String part2 = String(NODE) + ((String(node_id).indexOf("arm") >= 0) ? "_forearm"   : "_shin");
 
 // ================= MQTT TOPICS =================
 // Topics for sending/receiving messages
