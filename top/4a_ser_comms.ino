@@ -27,7 +27,6 @@ void serialSensorsTask(void *parameter) {
                 sensor_readings[sensor_id] = {0};
             }
         }
-        xSemaphoreTake(xSerialMutex, portMAX_DELAY);
 
         for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
             // Skip if IMU failed to initialize
@@ -35,6 +34,8 @@ void serialSensorsTask(void *parameter) {
                 0) {
                 continue;
             }
+
+            xSemaphoreTake(xSerialMutex, portMAX_DELAY);
 
             Serial.print("IMU ID: ");
             Serial.print(sensor_id);
@@ -53,10 +54,9 @@ void serialSensorsTask(void *parameter) {
             Serial.print(" Y=");
             Serial.print(sensor_readings[sensor_id].yaw);
             Serial.println();
-        }
-        Serial.println("--------------------------------------------------");
 
-        xSemaphoreGive(xSerialMutex);
+            xSemaphoreGive(xSerialMutex);
+        }
     }
 }
 

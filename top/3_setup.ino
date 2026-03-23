@@ -10,6 +10,11 @@ void createSemaphores() {
     // IMU Event Group
     // Null checks not needed for static event groups as they are statically allocated
     xSystemEventGroup = xEventGroupCreateStatic(&xSystemEventGroupBuffer);
+
+    // If WiFi Comms is disabled, set COMMS_RUNNING_FLAG_BIT immediately to allow system to run
+#if !defined(ENABLE_WIFI_COMMS)
+    xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
+#endif
     
     // IMU Data Queues
     for (int i = 0; i < NUM_IMU; i++) {

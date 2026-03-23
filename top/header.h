@@ -15,7 +15,7 @@
  * toggled for different build configurations via comments.
  */
 
-// #define DEBUG
+#define DEBUG
 // #define USE_AHRS
 #define ENABLE_SENSOR_COMMS
 #define ENABLE_WIFI_COMMS
@@ -56,6 +56,8 @@ bool blink_state_batt = false;
 // Heartbeat Variables
 bool hb_blink = true;
 bool blink_state_hb = false;
+uint8_t led_pwm = 0;
+uint8_t led_pwm_dir = 1;
 
 /**
  * RTOS Prototypes
@@ -67,11 +69,14 @@ QueueHandle_t xIMUQueue[NUM_IMU] = {nullptr};
 TaskHandle_t IMUTaskHandle[NUM_IMU] = {nullptr};
 TaskHandle_t CommsSensorsTaskHandle = NULL;
 
-// Event Group is fixed 24 bits
-// Event Group is used as static so that it is precompiled
-// Bit 0 to NUM_IMU-1 indicate if IMU is initialized
-// Bit NUM_IMU to NUM_IMU*2-1 indicate if IMU is pending calibration
-// Bit NUM_IMU*2 indicates if system is running (after scheduled start time)
+/**
+ * Event Group is fixed 24 bits
+ * Static Event Group is used so that it is precompiled
+ * 
+ * BITS 0-1: IMU 0-1 initialization status (1 = initialized, 0 = not initialized)
+ * BITS 2-3: IMU 0-1 calibration pending status (1 = pending calibration, 0 = not pending)
+ * BIT 4: COMMS_RUNNING_FLAG_BIT (1 = system running after scheduled start time
+ */
 EventGroupHandle_t xSystemEventGroup = NULL;
 StaticEventGroup_t xSystemEventGroupBuffer;
 
