@@ -8,6 +8,7 @@ const unsigned long sendIntervalMs = 20;
 // Statistics
 unsigned long bytesSent = 0;
 
+// ================= NTP SYNC =================
 void syncNTP() {
     configTime(0, 0, ntp_server);
     Serial.print("Syncing NTP time");
@@ -71,6 +72,7 @@ void connectMQTT() {
     }
 }
 
+// ================= SENSOR DATA PACKET =================
 void sendSensorPacket(imu_reading_t *imu_data) {
     // Create JSON document
     StaticJsonDocument<512> doc;
@@ -112,11 +114,33 @@ void sendSensorPacket(imu_reading_t *imu_data) {
 #endif
 }
 
+// ================= MQTT CALLBACK =================
 void callback(char *topic, byte *payload, unsigned int length) {
-    StaticJsonDocument<128> incoming;
+    String topicStr = String(topic);
+    StaticJsonDocument<256> incoming;
     DeserializationError err = deserializeJson(incoming, payload, length);
     if (err)
         return;
+
+    // ================= INFERENCE =================
+    // Handle inference first — it has no "command" key
+    if (topicStr == inferenceTopic) {
+        int seq = incoming["seq"];
+        Serial.printf("\n[INFERENCE RECEIVED] seq=%d\n", seq);
+
+        JsonObject obj = incoming.as<JsonObject>();
+        for (JsonPair kv : obj) {
+            const char *key = kv.key().c_str();
+            if (strcmp(key, "seq") == 0)
+                continue;
+            float score = kv.value().as<float>();
+            Serial.printf("  %s -> %.3f\n", key, score);
+        }
+        return;
+    }
+
+    // ================= COMMANDS =================
+    // All other topics must have a "command" key
     const char *cmd = incoming["command"];
     if (!cmd)
         return;

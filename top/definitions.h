@@ -6,8 +6,8 @@
  */
 
 // User Configurations
-#define PLAYER "shifu"
-#define NODE "right_leg"
+#define PLAYER "student"
+#define NODE "left_arm"
 
 // HW Definitions
 #define COMMS_CORE 0
@@ -69,5 +69,12 @@
 // Heartbeat Display Definitions
 #define HB_LED_PIN D3
 #define HB_BLINK_PERIOD_MS 500
+
+// Haptics Definitions
+#define HAPTIC_PIN D7
+#define HAPTIC_PULSE_MS 200
+#define HAPTIC_PAUSE_MS 800
+#define HAPTIC_OFF_PWM 127
+#define HAPTIC_ON_PWM 200
 
 #endif // DEFINITIONS_H

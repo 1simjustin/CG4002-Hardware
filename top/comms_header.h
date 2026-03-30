@@ -5,6 +5,7 @@
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <time.h>
 
 // ================= CONFIG =================
 // MQTT broker details
@@ -29,6 +30,7 @@ String commandTopic   = "command/" + String(player_id) + "/" + String(node_id); 
 String broadcastTopic = "command/" + String(player_id) + "/all";                // Broadcast to all nodes
 String sensorTopic    = "sensor/"  + String(player_id) + "/" + String(node_id) + "/raw";
 String statusTopic    = "status/"  + String(player_id) + "/" + String(node_id); // Reconnect notifications
+String inferenceTopic = "inference/" + String(player_id) + "/" + String(node_id); // Node-specific result
 
 // ================= NTP CONFIG =================
 const char* ntp_server = "pool.ntp.org";
