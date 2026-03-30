@@ -19,12 +19,14 @@
 // #define USE_AHRS
 #define ENABLE_SENSOR_COMMS
 #define ENABLE_WIFI_COMMS
+#define ENABLE_HAPTICS
 
 /**
  * Includes
  */
 #include <Adafruit_AHRS.h>
 #include <Adafruit_MPU6050.h>
+#include <Adafruit_DRV2605.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 
@@ -59,6 +61,11 @@ bool blink_state_hb = false;
 uint8_t led_pwm = 0;
 uint8_t led_pwm_dir = 1;
 
+// Haptics Variables
+Adafruit_DRV2605 drv;
+// Set state to true everytime haptic event is triggered
+bool haptic_state = false;
+
 /**
  * RTOS Prototypes
  */
@@ -88,6 +95,8 @@ TaskHandle_t BattDispTaskHandle = NULL;
 TaskHandle_t hbDispTaskHandle = NULL;
 
 SemaphoreHandle_t xSerialMutex = NULL;
+
+TaskHandle_t hapticTaskHandle = NULL;
 
 #if defined(DEBUG)
 TaskHandle_t MonitorTaskHandle = NULL;

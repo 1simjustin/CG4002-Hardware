@@ -43,6 +43,12 @@ void battDispTask(void *parameter);
 // Heartbeat Functions
 void hbDispTask(void *parameter);
 
+// Haptics Functions
+void haptic_setup();
+void hapticToggle();
+void hapticOff();
+void hapticTask(void *parameter);
+
 // General Utility Functions
 double radToDeg(double rad);
 double degToRad(double deg);

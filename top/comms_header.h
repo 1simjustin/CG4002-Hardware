@@ -17,7 +17,11 @@ const int mqtt_port = 8883;
 const char *node_id = NODE;
 // Player ID identifies which player the system belongs to (can be "shifu" or
 // "student")
-const char *player_id = PLAYER;
+#if (PLAYER == PLAYER_STUDENT)
+const char *player_id = "student";
+#elif (PLAYER == PLAYER_SHIFU)
+const char *player_id = "shifu";
+#endif
 
 // Decide body part names automatically
 // Set part 1 to "upper_arm" or "thigh" and part 2 to "forearm" or "shin" based on node_id

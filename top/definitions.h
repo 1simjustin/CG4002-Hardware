@@ -6,7 +6,10 @@
  */
 
 // User Configurations
-#define PLAYER "student"
+#define PLAYER_STUDENT 1
+#define PLAYER_SHIFU 2
+// Toggle the bwloe line to switch between "student" and "shifu" player
+#define PLAYER PLAYER_STUDENT
 #define NODE "left_arm"
 
 // HW Definitions
@@ -22,9 +25,10 @@
 #define COMMS_STACK_SIZE 16384
 
 // Core 1 (Sensors) Task Priorities
-#define IMU_TASK_PRIORITY 3
-#define BATT_TASK_PRIORITY 2
-#define ACTUATOR_TASK_PRIORITY 1
+#define IMU_TASK_PRIORITY 4
+#define BATT_TASK_PRIORITY 3
+#define ACTUATOR_TASK_PRIORITY 2
+#define HAPTIC_TASK_PRIORITY 1
 
 // Core 0 (Comms) Task Priorities
 #define SENSORS_COMMS_TASK_PRIORITY 2
@@ -47,6 +51,7 @@
 #define IMU_CALIB_FLAG_BITS IMU_FLAG_BITS << NUM_IMU
 // Bit NUM_IMU*2 for overall system running status
 #define COMMS_RUNNING_FLAG_BIT (1 << (NUM_IMU * 2))
+#define HAPTICS_ON_BIT (1 << (NUM_IMU * 2 + 1))
 
 #define CALIBRATION_SAMPLES 10
 #define CALIBRATION_DELAY_MS 1
@@ -76,5 +81,6 @@
 #define HAPTIC_PAUSE_MS 800
 #define HAPTIC_OFF_PWM 127
 #define HAPTIC_ON_PWM 200
+#define HAPTIC_POLL_TIMER 200
 
 #endif // DEFINITIONS_H
