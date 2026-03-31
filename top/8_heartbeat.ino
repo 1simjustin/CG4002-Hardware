@@ -8,7 +8,7 @@ void hbDispTask(void *parameter) {
         if ((system_bits & IMU_FLAG_BITS) != IMU_FLAG_BITS) {
             blink_state_hb = !blink_state_hb;
             digitalWrite(HB_LED_PIN, blink_state_hb ? HIGH : LOW);
-            vTaskDelay(pdMS_TO_TICKS(1000));
+            vTaskDelay(pdMS_TO_TICKS(HB_INIT_BLINK_PERIOD_MS));
             continue;
         }
 
@@ -16,7 +16,15 @@ void hbDispTask(void *parameter) {
         if ((system_bits & IMU_CALIB_FLAG_BITS) != 0) {
             blink_state_hb = !blink_state_hb;
             digitalWrite(HB_LED_PIN, blink_state_hb ? HIGH : LOW);
-            vTaskDelay(pdMS_TO_TICKS(500));
+            vTaskDelay(pdMS_TO_TICKS(HB_CALIB_BLINK_PERIOD_MS));
+            continue;
+        }
+
+        // If all IMUs are initialized and waiting for wifi connection, blink at 4Hz
+        if (WiFi.status() != WL_CONNECTED || !client.connected()) {
+            blink_state_hb = !blink_state_hb;
+            digitalWrite(HB_LED_PIN, blink_state_hb ? HIGH : LOW);
+            vTaskDelay(pdMS_TO_TICKS(HB_WIFI_BLINK_PERIOD_MS));
             continue;
         }
 
