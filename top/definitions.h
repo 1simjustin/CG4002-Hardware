@@ -68,6 +68,8 @@
 
 // Heartbeat Display Definitions
 #define HB_LED_PIN D3
-#define HB_BLINK_PERIOD_MS 500
+#define HB_INIT_BLINK_PERIOD_MS 1000
+#define HB_CALIB_BLINK_PERIOD_MS 500
+#define HB_WIFI_BLINK_PERIOD_MS 250
 
 #endif // DEFINITIONS_H
