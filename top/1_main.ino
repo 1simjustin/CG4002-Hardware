@@ -1,6 +1,7 @@
 #include "comms_header.h"
 #include "definitions.h"
 #include "header.h"
+#include "comms_header.h"
 
 void setup() {
     Serial.begin(115200);
@@ -19,11 +20,11 @@ void setup() {
     // Heartbeat Display Task
     result = xTaskCreatePinnedToCore(hbDispTask,             // Task function
                                      "HeartbeatDisplayTask", // Task name
-                                     STACK_SIZE, // Stack size (bytes)
-                                     NULL,       // Parameters
+                                     COMMS_STACK_SIZE, // Stack size (bytes)
+                                     NULL,             // Parameters
                                      ACTUATOR_TASK_PRIORITY, // Priority
                                      &hbDispTaskHandle,      // Task handle
-                                     COMMS_CORE              // Core 0 for comms
+                                     SENSOR_CORE // Core 1 for sensors
     );
     if (result != pdPASS) {
         Serial.println("Failed to create task: HeartbeatDisplayTask");
