@@ -2,9 +2,6 @@
 #include "header.h"
 
 void haptic_setup() {
-    drv.selectLibrary(1);
-    drv.setMode(DRV2605_MODE_PWMANALOG);
-
     pinMode(HAPTIC_PIN, OUTPUT);
 
     if (!drv.begin()) {
@@ -13,6 +10,9 @@ void haptic_setup() {
 #endif
         vTaskDelete(NULL);
     }
+    
+    drv.selectLibrary(1);
+    drv.setMode(DRV2605_MODE_PWMANALOG);
 }
 
 void hapticToggle() {

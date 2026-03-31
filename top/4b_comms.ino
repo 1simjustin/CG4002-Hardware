@@ -29,6 +29,7 @@ unsigned long long getTimestampMs() {
 
 // ================= WIFI CONNECTION =================
 void connectWiFi() {
+    xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT);
     WiFi.begin(ssid, password);
 #if defined(DEBUG)
     Serial.println("Connecting to WiFi");
@@ -41,10 +42,12 @@ void connectWiFi() {
     Serial.println("\nWiFi connected");
 #endif
     syncNTP();
+    xEventGroupSetBits(xSystemEventGroup, COMMS_FLAG_BIT);
 }
 
 // ================= MQTT CONNECTION =================
 void connectMQTT() {
+    xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT);
     // Create unique client ID
     char clientId[32];
     snprintf(clientId, sizeof(clientId), "%s_%s", player_id, node_id);
@@ -70,6 +73,7 @@ void connectMQTT() {
             vTaskDelay(pdMS_TO_TICKS(1000));
         }
     }
+    xEventGroupSetBits(xSystemEventGroup, COMMS_FLAG_BIT);
 }
 
 // ================= SENSOR DATA PACKET =================

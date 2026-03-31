@@ -1,6 +1,6 @@
+#include "comms_header.h"
 #include "definitions.h"
 #include "header.h"
-#include "comms_header.h"
 
 void setup() {
     Serial.begin(115200);
@@ -122,7 +122,7 @@ void setup() {
 #if defined(ENABLE_HAPTICS) && (PLAYER == PLAYER_STUDENT)
     result = xTaskCreatePinnedToCore(hapticTask,           // Task function
                                      "HapticTask",         // Task name
-                                     STACK_SIZE,           // Stack size (bytes)
+                                     COMMS_STACK_SIZE,     // Stack size (bytes)
                                      NULL,                 // Parameters
                                      HAPTIC_TASK_PRIORITY, // Priority
                                      &hapticTaskHandle,    // Task handle

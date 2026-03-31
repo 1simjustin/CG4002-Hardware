@@ -21,7 +21,7 @@ void hbDispTask(void *parameter) {
         }
 
         // If all IMUs are initialized and waiting for wifi connection, blink at 4Hz
-        if (WiFi.status() != WL_CONNECTED || !client.connected()) {
+        if ((system_bits & COMMS_FLAG_BIT) == 0) {
             blink_state_hb = !blink_state_hb;
             digitalWrite(HB_LED_PIN, blink_state_hb ? HIGH : LOW);
             vTaskDelay(pdMS_TO_TICKS(HB_WIFI_BLINK_PERIOD_MS));

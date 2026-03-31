@@ -10,7 +10,7 @@
 #define PLAYER_SHIFU 2
 // Toggle the bwloe line to switch between "student" and "shifu" player
 #define PLAYER PLAYER_STUDENT
-#define NODE "left_arm"
+#define NODE "right_leg"
 
 // HW Definitions
 #define COMMS_CORE 0
@@ -49,9 +49,12 @@
 #define IMU_FLAG_BITS ((1 << NUM_IMU) - 1)
 // Bits NUM_IMU to NUM_IMU*2-1 for IMU calibration status
 #define IMU_CALIB_FLAG_BITS IMU_FLAG_BITS << NUM_IMU
-// Bit NUM_IMU*2 for overall system running status
-#define COMMS_RUNNING_FLAG_BIT (1 << (NUM_IMU * 2))
-#define HAPTICS_ON_BIT (1 << (NUM_IMU * 2 + 1))
+// Bit NUM_IMU*2 for wifi and mqtt connection status
+#define COMMS_FLAG_BIT (1 << (NUM_IMU * 2))
+// Bit NUM_IMU*2+1 for overall system running status
+#define COMMS_RUNNING_FLAG_BIT (1 << (NUM_IMU * 2 + 1))
+// Bit NUM_IMU*2+2 for haptics on status
+#define HAPTICS_ON_BIT (1 << (NUM_IMU * 2 + 2))
 
 #define CALIBRATION_SAMPLES 10
 #define CALIBRATION_DELAY_MS 1
