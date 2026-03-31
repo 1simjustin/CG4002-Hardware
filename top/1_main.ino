@@ -1,4 +1,3 @@
-#include "comms_header.h"
 #include "definitions.h"
 #include "header.h"
 #include "comms_header.h"
