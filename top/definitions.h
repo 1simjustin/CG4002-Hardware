@@ -7,7 +7,7 @@
 
 // User Configurations
 #define PLAYER "shifu"
-#define NODE "right_leg"
+#define NODE "left_arm"
 
 // HW Definitions
 #define COMMS_CORE 0

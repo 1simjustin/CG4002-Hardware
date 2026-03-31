@@ -1,6 +1,6 @@
+#include "comms_header.h"
 #include "definitions.h"
 #include "header.h"
-#include "comms_header.h"
 
 void setup() {
     Serial.begin(115200);
@@ -17,13 +17,13 @@ void setup() {
 
     // Create RTOS Tasks
     // Heartbeat Display Task
-    result = xTaskCreatePinnedToCore(hbDispTask,           // Task function
+    result = xTaskCreatePinnedToCore(hbDispTask,             // Task function
                                      "HeartbeatDisplayTask", // Task name
-                                     STACK_SIZE,            // Stack size (bytes)
-                                     NULL,                  // Parameters
+                                     COMMS_STACK_SIZE, // Stack size (bytes)
+                                     NULL,             // Parameters
                                      ACTUATOR_TASK_PRIORITY, // Priority
-                                     &hbDispTaskHandle,     // Task handle
-                                     COMMS_CORE             // Core 0 for comms
+                                     &hbDispTaskHandle,      // Task handle
+                                     SENSOR_CORE // Core 1 for sensors
     );
     if (result != pdPASS) {
         Serial.println("Failed to create task: HeartbeatDisplayTask");
@@ -34,10 +34,10 @@ void setup() {
         char imuTaskName[20];
         sprintf(imuTaskName, "IMUTask%d", i);
         result =
-            xTaskCreatePinnedToCore(imuTask,     // Task function
-                                    imuTaskName, // Task name
-                                    IMU_STACK_SIZE,  // Stack size (bytes)
-                                    (void *)i,   // Parameters (pass IMU index)
+            xTaskCreatePinnedToCore(imuTask,        // Task function
+                                    imuTaskName,    // Task name
+                                    IMU_STACK_SIZE, // Stack size (bytes)
+                                    (void *)i, // Parameters (pass IMU index)
                                     IMU_TASK_PRIORITY, // Priority
                                     &IMUTaskHandle[i], // Task handle
                                     SENSOR_CORE        // Core 1 for sensors
@@ -53,7 +53,7 @@ void setup() {
 #if defined(ENABLE_WIFI_COMMS)
     result = xTaskCreatePinnedToCore(commsSensorsTask,   // Task function
                                      "CommsSensorsTask", // Task name
-                                     COMMS_STACK_SIZE,         // Stack size (bytes)
+                                     COMMS_STACK_SIZE,   // Stack size (bytes)
                                      NULL,               // Parameters
                                      SENSORS_COMMS_TASK_PRIORITY, // Priority
                                      &CommsSensorsTaskHandle,     // Task handle
@@ -117,19 +117,21 @@ void setup() {
     }
 
     // Monitor Task (Debug Only)
-// #if defined(DEBUG)
-//     result = xTaskCreatePinnedToCore(monitorTask,        // Task function
-//                                      "MonitorTask",      // Task name
-//                                      STACK_SIZE,         // Stack size (bytes)
-//                                      NULL,               // Parameters
-//                                      1,                  // Priority (lowest)
-//                                      &MonitorTaskHandle, // Task handle
-//                                      COMMS_CORE          // Core 0 for comms
-//     );
-//     if (result != pdPASS) {
-//         Serial.println("Failed to create task: MonitorTask");
-//     }
-// #endif
+    // #if defined(DEBUG)
+    //     result = xTaskCreatePinnedToCore(monitorTask,        // Task function
+    //                                      "MonitorTask",      // Task name
+    //                                      STACK_SIZE,         // Stack size
+    //                                      (bytes) NULL,               //
+    //                                      Parameters 1,                  //
+    //                                      Priority (lowest)
+    //                                      &MonitorTaskHandle, // Task handle
+    //                                      COMMS_CORE          // Core 0 for
+    //                                      comms
+    //     );
+    //     if (result != pdPASS) {
+    //         Serial.println("Failed to create task: MonitorTask");
+    //     }
+    // #endif
 }
 
 void loop() {

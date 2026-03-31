@@ -189,7 +189,7 @@ void commsSensorsTask(void *parameter) {
     );
 
 #if defined(DEBUG)
-    Serial.println("Serial Sensors Task Started");
+    Serial.println("Wireless Sensors Task Started");
     Serial.print("User: ");
     Serial.print(player_id);
     Serial.print(", Node: ");
