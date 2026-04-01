@@ -61,14 +61,15 @@ void serialSensorsTask(void *parameter) {
 }
 
 void serialBattTask(void *parameter) {
+    batt_reading_t reading;
     for (;;) {
-        xSemaphoreTake(xBattSemaphore, portMAX_DELAY);
+        xQueueReceive(xBattSerialQueue, &reading, portMAX_DELAY);
         xSemaphoreTake(xSerialMutex, portMAX_DELAY);
 
         Serial.print("Battery Voltage: ");
-        Serial.print(batt_voltage);
+        Serial.print(reading.voltage);
         Serial.print(" V | ");
-        Serial.print(batt_percentage);
+        Serial.print(reading.percentage);
         Serial.println("%");
         xSemaphoreGive(xSerialMutex);
     }

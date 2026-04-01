@@ -27,11 +27,15 @@ void createSemaphores() {
 #endif
     }
 
-    // Battery Semaphore
-    xBattSemaphore = xSemaphoreCreateBinary();
+    // Battery Queues
+    xBattDispQueue = xQueueCreate(1, sizeof(batt_reading_t));
+    xBattSerialQueue = xQueueCreate(1, sizeof(batt_reading_t));
 #if defined(DEBUG)
-    if (xBattSemaphore == NULL) {
-        Serial.println("Failed to create Battery semaphore");
+    if (xBattDispQueue == NULL) {
+        Serial.println("Failed to create Battery display queue");
+    }
+    if (xBattSerialQueue == NULL) {
+        Serial.println("Failed to create Battery serial queue");
     }
 #endif
 

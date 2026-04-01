@@ -51,8 +51,11 @@ Adafruit_MPU6050 mpu_devices[NUM_IMU];
 Adafruit_Mahony filters[NUM_IMU];
 
 // Battery Variables
-double batt_voltage;
-int batt_percentage;
+typedef struct {
+    double voltage;
+    int percentage;
+} batt_reading_t;
+
 bool blink_state_batt = false;
 
 // Heartbeat Variables
@@ -87,7 +90,8 @@ TaskHandle_t CommsSensorsTaskHandle = NULL;
 EventGroupHandle_t xSystemEventGroup = NULL;
 StaticEventGroup_t xSystemEventGroupBuffer;
 
-SemaphoreHandle_t xBattSemaphore = NULL;
+QueueHandle_t xBattDispQueue = NULL;
+QueueHandle_t xBattSerialQueue = NULL;
 
 TaskHandle_t BatteryTaskHandle = NULL;
 TaskHandle_t CommsBattTaskHandle = NULL;

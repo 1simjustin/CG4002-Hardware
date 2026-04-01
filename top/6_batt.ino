@@ -20,26 +20,31 @@ int batt_soc(double voltage) {
 }
 
 void battTask(void *parameter) {
+    batt_reading_t reading;
+
     for (;;) {
         int adc_value = analogRead(BATTERY_PIN);
-        batt_voltage = adc_value * ADC_REF * VOLTAGE_DIV_RATIO / ADC_MAX;
+        reading.voltage = adc_value * ADC_REF * VOLTAGE_DIV_RATIO / ADC_MAX;
+        reading.percentage = batt_soc(reading.voltage);
 
-        batt_percentage = batt_soc(batt_voltage);
-
-        xSemaphoreGive(xBattSemaphore);
+        xQueueOverwrite(xBattDispQueue, &reading);
+        xQueueOverwrite(xBattSerialQueue, &reading);
         vTaskDelay(BATT_PERIOD_MS / portTICK_PERIOD_MS);
     }
 }
 
 void battDispTask(void *parameter) {
     pinMode(BATT_LED_PIN, OUTPUT);
+    batt_reading_t reading = {0};
 
     for (;;) {
-        if (batt_percentage < BATT_CRITICAL_THRESHOLD) {
+        xQueuePeek(xBattDispQueue, &reading, 0);
+        
+        if (reading.percentage < BATT_CRITICAL_THRESHOLD) {
             blink_state_batt = !blink_state_batt;
             analogWrite(BATT_LED_PIN, blink_state_batt ? 255 : 0);
-        } else if (batt_percentage < BATT_LOW_THRESHOLD) {
-            uint8_t pwm_val = (uint8_t)map(batt_percentage, 0, 50, 255, 0);
+        } else if (reading.percentage < BATT_LOW_THRESHOLD) {
+            uint8_t pwm_val = (uint8_t)map(reading.percentage, 0, 50, 255, 0);
             analogWrite(BATT_LED_PIN, pwm_val);
         } else {
             analogWrite(BATT_LED_PIN, 0); // LED off
