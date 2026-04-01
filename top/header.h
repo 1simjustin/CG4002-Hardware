@@ -59,7 +59,7 @@ bool blink_state_batt = false;
 bool hb_blink = true;
 bool blink_state_hb = false;
 uint8_t led_pwm = 0;
-uint8_t led_pwm_dir = 1;
+int8_t led_pwm_dir = 1;
 
 // Haptics Variables
 Adafruit_DRV2605 drv;

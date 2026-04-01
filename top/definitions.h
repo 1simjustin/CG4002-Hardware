@@ -48,7 +48,7 @@
 // Bits 0 to NUM_IMU-1 for IMU initialization status
 #define IMU_FLAG_BITS ((1 << NUM_IMU) - 1)
 // Bits NUM_IMU to NUM_IMU*2-1 for IMU calibration status
-#define IMU_CALIB_FLAG_BITS IMU_FLAG_BITS << NUM_IMU
+#define IMU_CALIB_FLAG_BITS (IMU_FLAG_BITS << NUM_IMU)
 // Bit NUM_IMU*2 for wifi and mqtt connection status
 #define COMMS_FLAG_BIT (1 << (NUM_IMU * 2))
 // Bit NUM_IMU*2+1 for overall system running status

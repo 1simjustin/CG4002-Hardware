@@ -59,6 +59,7 @@ void connectMQTT() {
             // Subscribe to commands from server
             client.subscribe(commandTopic.c_str());   // command/player/node
             client.subscribe(broadcastTopic.c_str()); // command/player/all
+            client.subscribe(inferenceTopic.c_str()); // inference/player/node
 
             // Notify laptop this node has (re)connected — laptop will re-send
             // current state
@@ -245,6 +246,8 @@ void commsSensorsTask(void *parameter) {
             // If not running, check if a scheduled start time has been reached
             if (scheduledStartAt > 0 && getTimestampMs() >= scheduledStartAt) {
                 xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
+                // Trigger recalibration on scheduled start (same as immediate start)
+                xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
                 scheduledStartAt = 0;
 #if defined(DEBUG)
                 Serial.println("Scheduled start triggered");
