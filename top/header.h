@@ -19,7 +19,7 @@
 // #define USE_AHRS
 #define ENABLE_SENSOR_COMMS
 #define ENABLE_WIFI_COMMS
-#define ENABLE_HAPTICS
+// #define ENABLE_HAPTICS
 
 /**
  * Includes
@@ -66,8 +66,6 @@ int8_t led_pwm_dir = 1;
 
 // Haptics Variables
 Adafruit_DRV2605 drv;
-// Set state to true everytime haptic event is triggered
-bool haptic_state = false;
 
 /**
  * RTOS Prototypes

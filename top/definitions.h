@@ -10,7 +10,7 @@
 #define PLAYER_SHIFU 2
 // Toggle the bwloe line to switch between "student" and "shifu" player
 #define PLAYER PLAYER_STUDENT
-#define NODE "right_leg"
+#define NODE "left_leg"
 
 // HW Definitions
 #define COMMS_CORE 0
@@ -87,5 +87,6 @@
 #define HAPTIC_OFF_PWM 127
 #define HAPTIC_ON_PWM 200
 #define HAPTIC_POLL_TIMER 200
+#define HAPTIC_SCORE_THRESHOLD 0.4
 
 #endif // DEFINITIONS_H

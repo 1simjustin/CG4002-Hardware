@@ -141,6 +141,17 @@ void callback(char *topic, byte *payload, unsigned int length) {
             float score = kv.value().as<float>();
             Serial.printf("  %s -> %.3f\n", key, score);
         }
+
+        // Check joint scores for haptic feedback
+        float score1 = incoming[part1] | 1.0f;
+        float score2 = incoming[part2] | 1.0f;
+
+        if (score1 < HAPTIC_SCORE_THRESHOLD || score2 < HAPTIC_SCORE_THRESHOLD) {
+            xEventGroupSetBits(xSystemEventGroup, HAPTICS_ON_BIT);
+        } else {
+            xEventGroupClearBits(xSystemEventGroup, HAPTICS_ON_BIT);
+        }
+
         return;
     }
 
