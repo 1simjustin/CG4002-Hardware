@@ -10,7 +10,7 @@
 #define PLAYER_SHIFU 2
 // Toggle the bwloe line to switch between "student" and "shifu" player
 #define PLAYER PLAYER_STUDENT
-#define NODE "left_leg"
+#define NODE "right_arm"
 
 // HW Definitions
 #define COMMS_CORE 0
@@ -20,8 +20,7 @@
 #define I2C_SCL_PIN 22
 
 // RTOS Definitions
-#define STACK_SIZE 1024
-#define IMU_STACK_SIZE 8192
+#define STACK_SIZE 8192
 #define COMMS_STACK_SIZE 16384
 
 // Core 1 (Sensors) Task Priorities

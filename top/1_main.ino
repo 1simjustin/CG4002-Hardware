@@ -36,7 +36,7 @@ void setup() {
         result =
             xTaskCreatePinnedToCore(imuTask,        // Task function
                                     imuTaskName,    // Task name
-                                    IMU_STACK_SIZE, // Stack size (bytes)
+                                    STACK_SIZE, // Stack size (bytes)
                                     (void *)i, // Parameters (pass IMU index)
                                     IMU_TASK_PRIORITY, // Priority
                                     &IMUTaskHandle[i], // Task handle
