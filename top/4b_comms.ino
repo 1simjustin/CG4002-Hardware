@@ -13,7 +13,13 @@ void syncNTP() {
     configTime(0, 0, ntp_server);
     Serial.print("Syncing NTP time");
     struct tm timeinfo;
+    unsigned long start = millis();
     while (!getLocalTime(&timeinfo) || timeinfo.tm_year < 100) {
+        if (millis() - start > NTP_TIMEOUT_MS) {
+            Serial.println("\nNTP sync timed out — retrying");
+            configTime(0, 0, ntp_server);
+            start = millis();
+        }
         vTaskDelay(pdMS_TO_TICKS(500));
         Serial.print(".");
     }
@@ -30,13 +36,24 @@ unsigned long long getTimestampMs() {
 // ================= WIFI CONNECTION =================
 void connectWiFi() {
     xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT);
+    WiFi.disconnect(true);
+    vTaskDelay(pdMS_TO_TICKS(100));
     WiFi.begin(ssid, password);
 #if defined(DEBUG)
     Serial.println("Connecting to WiFi");
 #endif
+    int attempts = 0;
     while (WiFi.status() != WL_CONNECTED) {
         vTaskDelay(pdMS_TO_TICKS(500));
         Serial.print(".");
+        attempts++;
+        if (attempts >= WIFI_RETRY_ATTEMPTS) {
+            Serial.println("\nWiFi connect failed — retrying");
+            WiFi.disconnect(true);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            WiFi.begin(ssid, password);
+            attempts = 0;
+        }
     }
 #if defined(DEBUG)
     Serial.println("\nWiFi connected");
