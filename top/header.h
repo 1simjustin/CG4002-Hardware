@@ -19,7 +19,7 @@
 // #define USE_AHRS
 #define ENABLE_SENSOR_COMMS
 #define ENABLE_WIFI_COMMS
-// #define ENABLE_HAPTICS
+#define ENABLE_HAPTICS
 
 /**
  * Includes

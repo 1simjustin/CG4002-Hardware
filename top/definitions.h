@@ -9,8 +9,8 @@
 #define PLAYER_STUDENT 1
 #define PLAYER_SHIFU 2
 // Toggle the bwloe line to switch between "student" and "shifu" player
-#define PLAYER PLAYER_SHIFU
-#define NODE "right_leg "
+#define PLAYER PLAYER_STUDENT
+#define NODE "right_leg"
 
 // HW Definitions
 #define COMMS_CORE 0

@@ -35,7 +35,7 @@ unsigned long long getTimestampMs() {
 
 // ================= WIFI CONNECTION =================
 void connectWiFi() {
-    xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT);
+    xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
     WiFi.disconnect(true);
     vTaskDelay(pdMS_TO_TICKS(100));
     WiFi.begin(ssid, password);
@@ -64,7 +64,7 @@ void connectWiFi() {
 
 // ================= MQTT CONNECTION =================
 void connectMQTT() {
-    xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT);
+    xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
     // Create unique client ID
     char clientId[32];
     snprintf(clientId, sizeof(clientId), "%s_%s", player_id, node_id);
