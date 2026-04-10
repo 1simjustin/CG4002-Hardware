@@ -8,6 +8,8 @@ void setup() {
     // Initialize I2C
     i2c_setup();
 
+    BaseType_t result;
+
     // Initialize Voltage Reader
 
     // Initialize Semaphores

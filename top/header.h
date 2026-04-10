@@ -15,7 +15,7 @@
  * toggled for different build configurations via comments.
  */
 
-// #define DEBUG
+#define DEBUG
 // #define USE_AHRS
 #define ENABLE_SENSOR_COMMS
 #define ENABLE_WIFI_COMMS
@@ -59,7 +59,6 @@ typedef struct {
 bool blink_state_batt = false;
 
 // Heartbeat Variables
-bool hb_blink = true;
 bool blink_state_hb = false;
 uint8_t led_pwm = 0;
 int8_t led_pwm_dir = 1;
@@ -71,7 +70,6 @@ Adafruit_DRV2605 drv;
  * RTOS Prototypes
  */
 
-BaseType_t result;
 
 QueueHandle_t xIMUQueue[NUM_IMU] = {nullptr};
 TaskHandle_t IMUTaskHandle[NUM_IMU] = {nullptr};

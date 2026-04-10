@@ -37,9 +37,8 @@ void hbDispTask(void *parameter) {
         // If system is not running, set the LED to breathing effect
         else {
             led_pwm += led_pwm_dir * 5;
-            if (led_pwm == 0 || led_pwm == 255) {
-                led_pwm_dir *= -1; // Reverse direction at bounds
-            }
+            if (led_pwm >= 255) { led_pwm = 255; led_pwm_dir = -1; }
+            else if (led_pwm <= 0) { led_pwm = 0; led_pwm_dir = 1; }
             analogWrite(HB_LED_PIN, led_pwm);
             vTaskDelay(pdMS_TO_TICKS(25));
         }

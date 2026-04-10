@@ -1,5 +1,7 @@
 void serialSensorsTask(void *parameter) {
     imu_reading_t sensor_readings[NUM_IMU] = {0};
+    EventBits_t expected_imu_bits;
+    uint32_t received_imu_mask;
 
     // Wait until at least any IMU is initialized before starting to send data
     xEventGroupWaitBits(xSystemEventGroup, // Event Group Handle
@@ -14,49 +16,57 @@ void serialSensorsTask(void *parameter) {
 #endif
 
     for (;;) {
+        // Check if system is running
+        if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) == 0) {
+            vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
+            continue;
+        }
+
+        // Collect data from all initialized IMUs (non-blocking)
+        expected_imu_bits = xEventGroupGetBits(xSystemEventGroup) & IMU_FLAG_BITS;
+        received_imu_mask = 0;
+
         for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
-            // Skip if IMU failed to initialize
-            if (xEventGroupGetBits(xSystemEventGroup) & (1 << sensor_id)) {
-                xQueueReceive(
-                    xIMUQueue[sensor_id],        // Queue handle
-                    &sensor_readings[sensor_id], // Buffer to receive data
-                    portMAX_DELAY                // Wait indefinitely
-                );
+            if (expected_imu_bits & (1 << sensor_id)) {
+                if (xQueueReceive(xIMUQueue[sensor_id],
+                                  &sensor_readings[sensor_id], 0) == pdTRUE) {
+                    received_imu_mask |= (1 << sensor_id);
+                }
             } else {
-                // If IMU failed to initialize, set readings to 0
-                sensor_readings[sensor_id] = {0};
+                memset(&sensor_readings[sensor_id], 0,
+                       sizeof(sensor_readings[sensor_id]));
             }
         }
 
-        for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
-            // Skip if IMU failed to initialize
-            if ((xEventGroupGetBits(xSystemEventGroup) & (1 << sensor_id)) ==
-                0) {
-                continue;
-            }
-
+        // Print data if all initialized IMUs have new data
+        if (expected_imu_bits > 0 && received_imu_mask == expected_imu_bits) {
             xSemaphoreTake(xSerialMutex, portMAX_DELAY);
+            for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
+                if (!(expected_imu_bits & (1 << sensor_id)))
+                    continue;
 
-            Serial.print("IMU ID: ");
-            Serial.print(sensor_id);
+                Serial.print("IMU ID: ");
+                Serial.print(sensor_id);
 
-            Serial.print(" | Acceleration (m/s^2): X=");
-            Serial.print(sensor_readings[sensor_id].x);
-            Serial.print(" Y=");
-            Serial.print(sensor_readings[sensor_id].y);
-            Serial.print(" Z=");
-            Serial.print(sensor_readings[sensor_id].z);
+                Serial.print(" | Acceleration (m/s^2): X=");
+                Serial.print(sensor_readings[sensor_id].x);
+                Serial.print(" Y=");
+                Serial.print(sensor_readings[sensor_id].y);
+                Serial.print(" Z=");
+                Serial.print(sensor_readings[sensor_id].z);
 
-            Serial.print(" | IMU Gyro (deg/s): R=");
-            Serial.print(sensor_readings[sensor_id].roll);
-            Serial.print(" P=");
-            Serial.print(sensor_readings[sensor_id].pitch);
-            Serial.print(" Y=");
-            Serial.print(sensor_readings[sensor_id].yaw);
-            Serial.println();
-
+                Serial.print(" | IMU Gyro (deg/s): R=");
+                Serial.print(sensor_readings[sensor_id].roll);
+                Serial.print(" P=");
+                Serial.print(sensor_readings[sensor_id].pitch);
+                Serial.print(" Y=");
+                Serial.print(sensor_readings[sensor_id].yaw);
+                Serial.println();
+            }
             xSemaphoreGive(xSerialMutex);
         }
+
+        vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
     }
 }
 

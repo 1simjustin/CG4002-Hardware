@@ -174,7 +174,10 @@ void imuTask(void *parameter) {
             continue;
         }
 
-        mpu_devices[imu_id].getEvent(&a, &g, &temp);
+        if (!mpu_devices[imu_id].getEvent(&a, &g, &temp)) {
+            vTaskDelay(pdMS_TO_TICKS(IMU_PERIOD_MS));
+            continue;
+        }
         applyCalibration(&a, &g, &calib_offsets);
 
         // Store raw readings in buffer for sliding window average

@@ -11,19 +11,29 @@ unsigned long bytesSent = 0;
 // ================= NTP SYNC =================
 void syncNTP() {
     configTime(0, 0, ntp_server);
+    xSemaphoreTake(xSerialMutex, portMAX_DELAY);
     Serial.print("Syncing NTP time");
+    xSemaphoreGive(xSerialMutex);
     struct tm timeinfo;
+    int ntp_retries = 0;
     unsigned long start = millis();
     while (!getLocalTime(&timeinfo) || timeinfo.tm_year < 100) {
         if (millis() - start > NTP_TIMEOUT_MS) {
-            Serial.println("\nNTP sync timed out — retrying");
+            ntp_retries++;
+            xSemaphoreTake(xSerialMutex, portMAX_DELAY);
+            Serial.printf("\nNTP sync timed out (attempt %d) — retrying\n", ntp_retries);
+            xSemaphoreGive(xSerialMutex);
             configTime(0, 0, ntp_server);
             start = millis();
         }
         vTaskDelay(pdMS_TO_TICKS(500));
+        xSemaphoreTake(xSerialMutex, portMAX_DELAY);
         Serial.print(".");
+        xSemaphoreGive(xSerialMutex);
     }
+    xSemaphoreTake(xSerialMutex, portMAX_DELAY);
     Serial.println("\nNTP time synced");
+    xSemaphoreGive(xSerialMutex);
 }
 
 // Returns current Unix timestamp in milliseconds
@@ -40,24 +50,38 @@ void connectWiFi() {
     vTaskDelay(pdMS_TO_TICKS(100));
     WiFi.begin(ssid, password);
 #if defined(DEBUG)
+    xSemaphoreTake(xSerialMutex, portMAX_DELAY);
     Serial.println("Connecting to WiFi");
+    xSemaphoreGive(xSerialMutex);
 #endif
     int attempts = 0;
     while (WiFi.status() != WL_CONNECTED) {
         vTaskDelay(pdMS_TO_TICKS(500));
+
+        xSemaphoreTake(xSerialMutex, portMAX_DELAY);
         Serial.print(".");
+        xSemaphoreGive(xSerialMutex);
         attempts++;
+
         if (attempts >= WIFI_RETRY_ATTEMPTS) {
+            xSemaphoreTake(xSerialMutex, portMAX_DELAY);
             Serial.println("\nWiFi connect failed — retrying");
+            xSemaphoreGive(xSerialMutex);
+
             WiFi.disconnect(true);
             vTaskDelay(pdMS_TO_TICKS(100));
+
             WiFi.begin(ssid, password);
             attempts = 0;
         }
     }
+
 #if defined(DEBUG)
+    xSemaphoreTake(xSerialMutex, portMAX_DELAY);
     Serial.println("\nWiFi connected");
+    xSemaphoreGive(xSerialMutex);
 #endif
+
     syncNTP();
     xEventGroupSetBits(xSystemEventGroup, COMMS_FLAG_BIT);
 }
@@ -141,8 +165,12 @@ void callback(char *topic, byte *payload, unsigned int length) {
     String topicStr = String(topic);
     StaticJsonDocument<256> incoming;
     DeserializationError err = deserializeJson(incoming, payload, length);
-    if (err)
+    if (err) {
+#if defined(DEBUG)
+        Serial.printf("JSON parse error: %s\n", err.c_str());
+#endif
         return;
+    }
 
     // ================= INFERENCE =================
     // Handle inference first — it has no "command" key
@@ -204,7 +232,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }
     // Stop command
     else if (strcmp(cmd, "stop") == 0) {
-        xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
+        xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT | HAPTICS_ON_BIT);
         scheduledStartAt = 0;
 #if defined(DEBUG)
         Serial.println("STOP command received");
@@ -237,9 +265,9 @@ void commsSensorsTask(void *parameter) {
     EventBits_t expected_imu_bits;
     uint32_t received_imu_mask;
 
-    // Wait until at least any IMU is initialized before starting to send data
-    xEventGroupWaitBits(xSystemEventGroup, // Event Group Handle
-                        IMU_FLAG_BITS, // Bits to wait for (IMUs initialized)
+    // Wait until at least any IMU is initialized and comms is ready
+    xEventGroupWaitBits(xSystemEventGroup,
+                        IMU_FLAG_BITS | COMMS_FLAG_BIT,
                         pdFALSE,       // Do not clear bits on exit
                         pdFALSE,       // Any bit
                         portMAX_DELAY  // Wait indefinitely
@@ -287,12 +315,6 @@ void commsSensorsTask(void *parameter) {
                 vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
                 continue;
             }
-        }
-
-        // Return if COMMS_RUNNING_FLAG_BIT is not set
-        if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) ==
-            0) {
-            continue;
         }
 
         // Wait for new data from all initialized IMUs

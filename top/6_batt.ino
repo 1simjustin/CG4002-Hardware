@@ -35,7 +35,7 @@ void battTask(void *parameter) {
 
 void battDispTask(void *parameter) {
     pinMode(BATT_LED_PIN, OUTPUT);
-    batt_reading_t reading = {0};
+    batt_reading_t reading = {BATT_VOLT_MAX, 100};
 
     for (;;) {
         xQueuePeek(xBattDispQueue, &reading, 0);

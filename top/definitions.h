@@ -9,8 +9,8 @@
 #define PLAYER_STUDENT 1
 #define PLAYER_SHIFU 2
 // Toggle the bwloe line to switch between "student" and "shifu" player
-#define PLAYER PLAYER_STUDENT
-#define NODE "right_leg"
+#define PLAYER PLAYER_SHIFU
+#define NODE "left_leg"
 
 // HW Definitions
 #define COMMS_CORE 0
@@ -58,7 +58,7 @@
 #define HAPTICS_ON_BIT (1 << (NUM_IMU * 2 + 2))
 
 #define CALIBRATION_SAMPLES 10
-#define CALIBRATION_DELAY_MS 1
+#define CALIBRATION_DELAY_MS IMU_PERIOD_MS
 #define SLIDING_WINDOW_SIZE 1
 
 // Batt Reader Definitions
