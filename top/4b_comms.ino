@@ -22,7 +22,8 @@ void syncNTP() {
         if (millis() - start > NTP_TIMEOUT_MS) {
             ntp_retries++;
             xSemaphoreTake(xSerialMutex, portMAX_DELAY);
-            Serial.printf("\nNTP sync timed out (attempt %d) — retrying\n", ntp_retries);
+            Serial.printf("\nNTP sync timed out (attempt %d) — retrying\n",
+                          ntp_retries);
             xSemaphoreGive(xSerialMutex);
             configTime(0, 0, ntp_server);
             start = millis();
@@ -46,7 +47,8 @@ unsigned long long getTimestampMs() {
 
 // ================= WIFI CONNECTION =================
 void connectWiFi() {
-    xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
+    xEventGroupClearBits(xSystemEventGroup,
+                         COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
     WiFi.disconnect(true);
     vTaskDelay(pdMS_TO_TICKS(100));
     WiFi.begin(ssid, password);
@@ -89,10 +91,13 @@ void connectWiFi() {
 
 // ================= MQTT CONNECTION =================
 void connectMQTT() {
-    xEventGroupClearBits(xSystemEventGroup, COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
+    xEventGroupClearBits(xSystemEventGroup,
+                         COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
+
     // Create unique client ID
     char clientId[32];
     snprintf(clientId, sizeof(clientId), "%s_%s", player_id, node_id);
+
     // Keep attempting to connect until successful
     while (!client.connected()) {
         Serial.println("Connecting to MQTT...");
@@ -105,11 +110,12 @@ void connectMQTT() {
 
             // Notify laptop this node has (re)connected — laptop will re-send
             // current state
-            client.publish(statusTopic, "{\"event\":\"connected\"}",
-                           false);
+            client.publish(statusTopic, "{\"event\":\"connected\"}", false);
             Serial.println(
                 "Status published — waiting for laptop to re-send state");
-        } else {
+        }
+        // Failed to connect — wait and retry
+        else {
             Serial.print("failed, rc=");
             Serial.print(client.state());
             Serial.println(" retrying...");
@@ -165,6 +171,7 @@ void sendSensorPacket(imu_reading_t *imu_data) {
 void callback(char *topic, byte *payload, unsigned int length) {
     StaticJsonDocument<256> incoming;
     DeserializationError err = deserializeJson(incoming, payload, length);
+
     if (err) {
 #if defined(DEBUG)
         Serial.printf("JSON parse error: %s\n", err.c_str());
@@ -191,12 +198,13 @@ void callback(char *topic, byte *payload, unsigned int length) {
         float score1 = incoming[part1] | 1.0f;
         float score2 = incoming[part2] | 1.0f;
 
-        if (score1 < HAPTIC_SCORE_THRESHOLD || score2 < HAPTIC_SCORE_THRESHOLD) {
+        // Trigger haptics if either score is below threshold
+        if (score1 < HAPTIC_SCORE_THRESHOLD ||
+            score2 < HAPTIC_SCORE_THRESHOLD) {
             xEventGroupSetBits(xSystemEventGroup, HAPTICS_ON_BIT);
         } else {
             xEventGroupClearBits(xSystemEventGroup, HAPTICS_ON_BIT);
         }
-
         return;
     }
 
@@ -210,6 +218,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
     // Start Command
     if (strcmp(cmd, "start") == 0) {
         unsigned long long start_at = incoming["start_at"] | 0ULL;
+        
         // Wait for scheduled start time if provided
         if (start_at > 0) {
             portENTER_CRITICAL(&scheduledStartMux);
@@ -236,7 +245,8 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }
     // Stop command
     else if (strcmp(cmd, "stop") == 0) {
-        xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT | HAPTICS_ON_BIT);
+        xEventGroupClearBits(xSystemEventGroup,
+                             COMMS_RUNNING_FLAG_BIT | HAPTICS_ON_BIT);
         portENTER_CRITICAL(&scheduledStartMux);
         scheduledStartAt = 0;
         portEXIT_CRITICAL(&scheduledStartMux);
@@ -273,11 +283,10 @@ void commsSensorsTask(void *parameter) {
     uint32_t received_imu_mask;
 
     // Wait until at least any IMU is initialized and comms is ready
-    xEventGroupWaitBits(xSystemEventGroup,
-                        IMU_FLAG_BITS | COMMS_FLAG_BIT,
-                        pdFALSE,       // Do not clear bits on exit
-                        pdFALSE,       // Any bit
-                        portMAX_DELAY  // Wait indefinitely
+    xEventGroupWaitBits(xSystemEventGroup, IMU_FLAG_BITS | COMMS_FLAG_BIT,
+                        pdFALSE,      // Do not clear bits on exit
+                        pdFALSE,      // Any bit
+                        portMAX_DELAY // Wait indefinitely
     );
 
 #if defined(DEBUG)
@@ -312,7 +321,8 @@ void commsSensorsTask(void *parameter) {
             portEXIT_CRITICAL(&scheduledStartMux);
             if (startAt > 0 && getTimestampMs() >= startAt) {
                 xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
-                // Trigger recalibration on scheduled start (same as immediate start)
+                // Trigger recalibration on scheduled start (same as immediate
+                // start)
                 xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
                 portENTER_CRITICAL(&scheduledStartMux);
                 scheduledStartAt = 0;
