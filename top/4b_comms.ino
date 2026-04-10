@@ -20,6 +20,7 @@ void syncNTP() {
     struct tm timeinfo;
     int ntp_retries = 0;
     unsigned long start = millis();
+
     while (!getLocalTime(&timeinfo) || timeinfo.tm_year < 100) {
         if (millis() - start > NTP_TIMEOUT_MS) {
             ntp_retries++;
@@ -46,7 +47,7 @@ void syncNTP() {
         Serial.print(".");
         xSemaphoreGive(xSerialMutex);
     }
-    
+
     ntpSynced = true;
     xSemaphoreTake(xSerialMutex, portMAX_DELAY);
     Serial.println("\nNTP time synced");
@@ -67,12 +68,15 @@ void connectWiFi() {
     WiFi.disconnect(true);
     vTaskDelay(pdMS_TO_TICKS(100));
     WiFi.begin(ssid, password);
+
 #if defined(DEBUG)
     xSemaphoreTake(xSerialMutex, portMAX_DELAY);
     Serial.println("Connecting to WiFi");
     xSemaphoreGive(xSerialMutex);
 #endif
+
     int attempts = 0;
+    
     while (WiFi.status() != WL_CONNECTED) {
         vTaskDelay(pdMS_TO_TICKS(500));
 
