@@ -9,8 +9,8 @@
 #define PLAYER_STUDENT 1
 #define PLAYER_SHIFU 2
 // Toggle the bwloe line to switch between "student" and "shifu" player
-#define PLAYER PLAYER_SHIFU
-#define NODE "left_leg"
+#define PLAYER PLAYER_STUDENT
+#define NODE "left_arm"
 
 // HW Definitions
 #define COMMS_CORE 0
@@ -35,6 +35,7 @@
 
 #define COMMS_TASK_DELAY_MS 10
 #define NTP_TIMEOUT_MS 10000
+#define NTP_MAX_RETRIES 3
 #define WIFI_RETRY_ATTEMPTS 10
 
 // IMU Definitions

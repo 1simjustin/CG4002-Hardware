@@ -8,6 +8,8 @@ unsigned long lastSendTime = 0;
 const unsigned long sendIntervalMs = 20;
 // Statistics
 unsigned long bytesSent = 0;
+// NTP state — false until first successful sync
+bool ntpSynced = false;
 
 // ================= NTP SYNC =================
 void syncNTP() {
@@ -21,18 +23,31 @@ void syncNTP() {
     while (!getLocalTime(&timeinfo) || timeinfo.tm_year < 100) {
         if (millis() - start > NTP_TIMEOUT_MS) {
             ntp_retries++;
+
+            if (ntp_retries >= NTP_MAX_RETRIES) {
+                ntpSynced = false;
+                xSemaphoreTake(xSerialMutex, portMAX_DELAY);
+                Serial.println("\nNTP sync failed — scheduled starts will fall back to immediate");
+                xSemaphoreGive(xSerialMutex);
+                return;
+            }
+
             xSemaphoreTake(xSerialMutex, portMAX_DELAY);
-            Serial.printf("\nNTP sync timed out (attempt %d) — retrying\n",
-                          ntp_retries);
+            Serial.printf("\nNTP sync timed out (attempt %d/%d) — retrying\n",
+                          ntp_retries, NTP_MAX_RETRIES);
             xSemaphoreGive(xSerialMutex);
+
             configTime(0, 0, ntp_server);
             start = millis();
         }
+
         vTaskDelay(pdMS_TO_TICKS(500));
         xSemaphoreTake(xSerialMutex, portMAX_DELAY);
         Serial.print(".");
         xSemaphoreGive(xSerialMutex);
     }
+    
+    ntpSynced = true;
     xSemaphoreTake(xSerialMutex, portMAX_DELAY);
     Serial.println("\nNTP time synced");
     xSemaphoreGive(xSerialMutex);
@@ -85,7 +100,9 @@ void connectWiFi() {
     xSemaphoreGive(xSerialMutex);
 #endif
 
-    syncNTP();
+    if (!ntpSynced) {
+        syncNTP();
+    }
     xEventGroupSetBits(xSystemEventGroup, COMMS_FLAG_BIT);
 }
 
@@ -219,8 +236,8 @@ void callback(char *topic, byte *payload, unsigned int length) {
     if (strcmp(cmd, "start") == 0) {
         unsigned long long start_at = incoming["start_at"] | 0ULL;
         
-        // Wait for scheduled start time if provided
-        if (start_at > 0) {
+        // Wait for scheduled start time if provided and NTP is available
+        if (start_at > 0 && ntpSynced) {
             portENTER_CRITICAL(&scheduledStartMux);
             scheduledStartAt = start_at;
             portEXIT_CRITICAL(&scheduledStartMux);
