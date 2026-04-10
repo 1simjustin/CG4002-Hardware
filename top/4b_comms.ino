@@ -1,6 +1,7 @@
 // ================= STATE =================
 // Tracks whether sensor streaming is active
-unsigned long long scheduledStartAt = 0;
+volatile unsigned long long scheduledStartAt = 0;
+portMUX_TYPE scheduledStartMux = portMUX_INITIALIZER_UNLOCKED;
 // Timing for periodic sending
 unsigned long lastSendTime = 0;
 // Interval between sensor packets (milliseconds) — 50Hz
@@ -98,13 +99,13 @@ void connectMQTT() {
         if (client.connect(clientId)) {
             Serial.println("connected");
             // Subscribe to commands from server
-            client.subscribe(commandTopic.c_str());   // command/player/node
-            client.subscribe(broadcastTopic.c_str()); // command/player/all
-            client.subscribe(inferenceTopic.c_str()); // inference/player/node
+            client.subscribe(commandTopic);   // command/player/node
+            client.subscribe(broadcastTopic); // command/player/all
+            client.subscribe(inferenceTopic); // inference/player/node
 
             // Notify laptop this node has (re)connected — laptop will re-send
             // current state
-            client.publish(statusTopic.c_str(), "{\"event\":\"connected\"}",
+            client.publish(statusTopic, "{\"event\":\"connected\"}",
                            false);
             Serial.println(
                 "Status published — waiting for laptop to re-send state");
@@ -151,7 +152,7 @@ void sendSensorPacket(imu_reading_t *imu_data) {
     char buffer[512];
     size_t len = serializeJson(doc, buffer);
     // Publish JSON to sensor topic
-    client.publish(sensorTopic.c_str(), buffer, len);
+    client.publish(sensorTopic, buffer, len);
     // Update statistics
     bytesSent += len;
 
@@ -162,7 +163,6 @@ void sendSensorPacket(imu_reading_t *imu_data) {
 
 // ================= MQTT CALLBACK =================
 void callback(char *topic, byte *payload, unsigned int length) {
-    String topicStr = String(topic);
     StaticJsonDocument<256> incoming;
     DeserializationError err = deserializeJson(incoming, payload, length);
     if (err) {
@@ -174,7 +174,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
 
     // ================= INFERENCE =================
     // Handle inference first — it has no "command" key
-    if (topicStr == inferenceTopic) {
+    if (strcmp(topic, inferenceTopic) == 0) {
         int seq = incoming["seq"];
         Serial.printf("\n[INFERENCE RECEIVED] seq=%d\n", seq);
 
@@ -212,7 +212,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
         unsigned long long start_at = incoming["start_at"] | 0ULL;
         // Wait for scheduled start time if provided
         if (start_at > 0) {
+            portENTER_CRITICAL(&scheduledStartMux);
             scheduledStartAt = start_at;
+            portEXIT_CRITICAL(&scheduledStartMux);
             xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
 #if defined(DEBUG)
             Serial.printf("START scheduled at %llu (in ~%llums)\n", start_at,
@@ -224,7 +226,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
             xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
             // Set calibration bits to 1 to trigger calibration
             xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
+            portENTER_CRITICAL(&scheduledStartMux);
             scheduledStartAt = 0;
+            portEXIT_CRITICAL(&scheduledStartMux);
 #if defined(DEBUG)
             Serial.println("START command received (immediate)");
 #endif
@@ -233,7 +237,9 @@ void callback(char *topic, byte *payload, unsigned int length) {
     // Stop command
     else if (strcmp(cmd, "stop") == 0) {
         xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT | HAPTICS_ON_BIT);
+        portENTER_CRITICAL(&scheduledStartMux);
         scheduledStartAt = 0;
+        portEXIT_CRITICAL(&scheduledStartMux);
 #if defined(DEBUG)
         Serial.println("STOP command received");
 #endif
@@ -241,6 +247,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
 }
 
 void comms_init() {
+    buildTopics();
     connectWiFi();
     // Set TLS certificate for MQTT
     espClient.setCACert(ca_cert);
@@ -300,11 +307,16 @@ void commsSensorsTask(void *parameter) {
         if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) ==
             0) {
             // If not running, check if a scheduled start time has been reached
-            if (scheduledStartAt > 0 && getTimestampMs() >= scheduledStartAt) {
+            portENTER_CRITICAL(&scheduledStartMux);
+            unsigned long long startAt = scheduledStartAt;
+            portEXIT_CRITICAL(&scheduledStartMux);
+            if (startAt > 0 && getTimestampMs() >= startAt) {
                 xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
                 // Trigger recalibration on scheduled start (same as immediate start)
                 xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
+                portENTER_CRITICAL(&scheduledStartMux);
                 scheduledStartAt = 0;
+                portEXIT_CRITICAL(&scheduledStartMux);
 #if defined(DEBUG)
                 Serial.println("Scheduled start triggered");
 #endif

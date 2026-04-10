@@ -25,16 +25,31 @@ const char *player_id = "shifu";
 
 // Decide body part names automatically
 // Set part 1 to "upper_arm" or "thigh" and part 2 to "forearm" or "shin" based on node_id
-const String part1 = String(NODE) + ((String(node_id).indexOf("arm") >= 0) ? "_upper_arm" : "_thigh");
-const String part2 = String(NODE) + ((String(node_id).indexOf("arm") >= 0) ? "_forearm"   : "_shin");
+#define IS_ARM_NODE (strstr(NODE, "arm") != NULL)
+
+char part1[32];
+char part2[32];
 
 // ================= MQTT TOPICS =================
 // Topics for sending/receiving messages
-String commandTopic   = "command/" + String(player_id) + "/" + String(node_id); // Node-specific commands
-String broadcastTopic = "command/" + String(player_id) + "/all";                // Broadcast to all nodes
-String sensorTopic    = "sensor/"  + String(player_id) + "/" + String(node_id) + "/raw";
-String statusTopic    = "status/"  + String(player_id) + "/" + String(node_id); // Reconnect notifications
-String inferenceTopic = "inference/" + String(player_id) + "/" + String(node_id); // Node-specific result
+char commandTopic[64];
+char broadcastTopic[64];
+char sensorTopic[64];
+char statusTopic[64];
+char inferenceTopic[64];
+
+void buildTopics() {
+    // Build body part names
+    snprintf(part1, sizeof(part1), "%s%s", NODE, IS_ARM_NODE ? "_upper_arm" : "_thigh");
+    snprintf(part2, sizeof(part2), "%s%s", NODE, IS_ARM_NODE ? "_forearm"   : "_shin");
+
+    // Build MQTT topics
+    snprintf(commandTopic,   sizeof(commandTopic),   "command/%s/%s",     player_id, node_id);
+    snprintf(broadcastTopic, sizeof(broadcastTopic), "command/%s/all",    player_id);
+    snprintf(sensorTopic,    sizeof(sensorTopic),    "sensor/%s/%s/raw",  player_id, node_id);
+    snprintf(statusTopic,    sizeof(statusTopic),    "status/%s/%s",      player_id, node_id);
+    snprintf(inferenceTopic, sizeof(inferenceTopic), "inference/%s/%s",   player_id, node_id);
+}
 
 // ================= NTP CONFIG =================
 const char* ntp_server = "pool.ntp.org";
