@@ -48,6 +48,7 @@
 #define HAPTIC_TASK_PRIORITY 1
 
 // Core 0 (Comms) Task Priorities
+#define COMMS_WDG_TASK_PRIORITY 3
 #define SENSORS_COMMS_TASK_PRIORITY 2
 #define BATT_COMMS_TASK_PRIORITY 1
 

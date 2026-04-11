@@ -58,7 +58,7 @@ void setup() {
                                      "CommsWatchdogTask",  // Task name
                                      COMMS_STACK_SIZE,     // Stack size (bytes)
                                      NULL,                 // Parameters
-                                     SENSORS_COMMS_TASK_PRIORITY, // Priority
+                                     COMMS_WDG_TASK_PRIORITY, // Priority
                                      &CommsWatchdogTaskHandle,    // Task handle
                                      COMMS_CORE // Core 0 for comms
     );
