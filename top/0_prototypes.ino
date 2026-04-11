@@ -18,9 +18,11 @@ void createSemaphores();
 // Comms Functions
 void serialSensorsTask(void *parameter);
 void serialBattTask(void *parameter);
+void commsWatchdogTask(void *parameter);
 void commsSensorsTask(void *parameter);
 void commsBattTask(void *parameter);
 
+void comms_init();
 void syncNTP();
 unsigned long long getTimestampMs();
 void connectWiFi();

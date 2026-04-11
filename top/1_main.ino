@@ -53,14 +53,14 @@ void setup() {
     // Comms Tasks
 #if defined(ENABLE_SENSOR_COMMS)
 #if defined(ENABLE_WIFI_COMMS)
-    // Watchdog task — manages WiFi/MQTT connectivity
-    result = xTaskCreatePinnedToCore(commsWatchdogTask,       // Task function
-                                     "CommsWatchdogTask",     // Task name
-                                     COMMS_STACK_SIZE,        // Stack size (bytes)
-                                     NULL,                    // Parameters
+    // Watchdog task — monitors WiFi/MQTT connectivity
+    result = xTaskCreatePinnedToCore(commsWatchdogTask,    // Task function
+                                     "CommsWatchdogTask",  // Task name
+                                     COMMS_STACK_SIZE,     // Stack size (bytes)
+                                     NULL,                 // Parameters
                                      SENSORS_COMMS_TASK_PRIORITY, // Priority
                                      &CommsWatchdogTaskHandle,    // Task handle
-                                     COMMS_CORE               // Core 0 for comms
+                                     COMMS_CORE // Core 0 for comms
     );
     if (result != pdPASS) {
         Serial.println("Failed to create task: CommsWatchdogTask");

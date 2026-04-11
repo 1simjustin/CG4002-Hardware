@@ -63,8 +63,6 @@ unsigned long long getTimestampMs() {
 
 // ================= WIFI CONNECTION =================
 void connectWiFi() {
-    xEventGroupClearBits(xSystemEventGroup,
-                         COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
     WiFi.disconnect(true);
     vTaskDelay(pdMS_TO_TICKS(100));
     WiFi.begin(ssid, password);
@@ -112,9 +110,6 @@ void connectWiFi() {
 
 // ================= MQTT CONNECTION =================
 void connectMQTT() {
-    xEventGroupClearBits(xSystemEventGroup,
-                         COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
-
     // Create unique client ID
     char clientId[32];
     snprintf(clientId, sizeof(clientId), "%s_%s", player_id, node_id);
@@ -294,11 +289,36 @@ void comms_init() {
 /**
  * RTOS TASKS
  */
-void commsSensorsTask(void *parameter) {
-    // Brief delay to allow hardware to initialize
+
+// Watchdog task — monitors WiFi/MQTT connectivity and manages COMMS_FLAG_BIT
+void commsWatchdogTask(void *parameter) {
     vTaskDelay(pdMS_TO_TICKS(100));
     comms_init();
 
+    for (;;) {
+        // Monitor WiFi
+        if (WiFi.status() != WL_CONNECTED) {
+            xEventGroupClearBits(xSystemEventGroup,
+                                 COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
+#if defined(DEBUG)
+            Serial.println("WiFi lost. Reconnecting...");
+#endif
+            connectWiFi();
+        }
+
+        // Monitor MQTT
+        if (!client.connected()) {
+            xEventGroupClearBits(xSystemEventGroup,
+                                 COMMS_FLAG_BIT | COMMS_RUNNING_FLAG_BIT);
+            connectMQTT();
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
+    }
+}
+
+// Sensor data task — handles MQTT messages and IMU data publishing
+void commsSensorsTask(void *parameter) {
     imu_reading_t sensor_readings[NUM_IMU] = {0};
     EventBits_t expected_imu_bits;
     uint32_t received_imu_mask;
@@ -319,16 +339,10 @@ void commsSensorsTask(void *parameter) {
 #endif
 
     for (;;) {
-        if (WiFi.status() != WL_CONNECTED) {
-#if defined(DEBUG)
-            Serial.println("WiFi lost. Reconnecting...");
-#endif
-            connectWiFi();
-        }
-
-        // Reconnect MQTT if needed
-        if (!client.connected()) {
-            connectMQTT();
+        // Block until comms is available
+        if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_FLAG_BIT) == 0) {
+            xEventGroupWaitBits(xSystemEventGroup, COMMS_FLAG_BIT,
+                                pdFALSE, pdTRUE, portMAX_DELAY);
         }
 
         client.loop();
@@ -342,8 +356,6 @@ void commsSensorsTask(void *parameter) {
             portEXIT_CRITICAL(&scheduledStartMux);
             if (startAt > 0 && getTimestampMs() >= startAt) {
                 xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
-                // Trigger recalibration on scheduled start (same as immediate
-                // start)
                 xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
                 portENTER_CRITICAL(&scheduledStartMux);
                 scheduledStartAt = 0;
@@ -351,10 +363,7 @@ void commsSensorsTask(void *parameter) {
 #if defined(DEBUG)
                 Serial.println("Scheduled start triggered");
 #endif
-            }
-            // Sleep briefly to avoid busy loop when not running
-            // We also skip sending if not running
-            else {
+            } else {
                 vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
                 continue;
             }
@@ -366,28 +375,23 @@ void commsSensorsTask(void *parameter) {
         received_imu_mask = 0;
 
         for (int sensor_id = 0; sensor_id < NUM_IMU; sensor_id++) {
-            // Check if IMU is initialized (bit is 1)
             if (expected_imu_bits & (1 << sensor_id)) {
-                // Try to pull data from its queue
                 if (xQueueReceive(xIMUQueue[sensor_id],
                                   &sensor_readings[sensor_id], 0) == pdTRUE) {
-                    // Set this IMU bit in our local tracker
                     received_imu_mask |= (1 << sensor_id);
                 }
-            }
-            // If not initialised
-            else {
+            } else {
                 memset(&sensor_readings[sensor_id], 0,
                        sizeof(sensor_readings[sensor_id]));
             }
         }
 
-        // Send data if all initialized IMUs have new data
-        if (expected_imu_bits > 0 && received_imu_mask == expected_imu_bits) {
+        // Send if all initialized IMUs have data and comms still connected
+        if (expected_imu_bits > 0 && received_imu_mask == expected_imu_bits &&
+            (xEventGroupGetBits(xSystemEventGroup) & COMMS_FLAG_BIT)) {
             sendSensorPacket(sensor_readings);
         }
 
-        // Sleep briefly to yield to other tasks
         vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
     }
 }
