@@ -73,6 +73,7 @@ Adafruit_DRV2605 drv;
 
 QueueHandle_t xIMUQueue[NUM_IMU] = {nullptr};
 TaskHandle_t IMUTaskHandle[NUM_IMU] = {nullptr};
+TaskHandle_t CommsWatchdogTaskHandle = NULL;
 TaskHandle_t CommsSensorsTaskHandle = NULL;
 
 /**

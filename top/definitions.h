@@ -8,9 +8,27 @@
 // User Configurations
 #define PLAYER_STUDENT 1
 #define PLAYER_SHIFU 2
-// Toggle the bwloe line to switch between "student" and "shifu" player
-#define PLAYER PLAYER_STUDENT
-#define NODE "left_arm"
+// Toggle the below line to switch between "student" and "shifu" player
+#define PLAYER PLAYER_SHIFU
+
+// Node identifiers (numeric for preprocessor comparison)
+#define NODE_LEFT_ARM  1
+#define NODE_RIGHT_ARM 2
+#define NODE_LEFT_LEG  3
+#define NODE_RIGHT_LEG 4
+// Toggle the below line to switch between nodes
+#define NODE_ID NODE_RIGHT_ARM
+
+// Derive NODE string from NODE_ID
+#if (NODE_ID == NODE_LEFT_ARM)
+    #define NODE "left_arm"
+#elif (NODE_ID == NODE_RIGHT_ARM)
+    #define NODE "right_arm"
+#elif (NODE_ID == NODE_LEFT_LEG)
+    #define NODE "left_leg"
+#elif (NODE_ID == NODE_RIGHT_LEG)
+    #define NODE "right_leg"
+#endif
 
 // HW Definitions
 #define COMMS_CORE 0
@@ -65,7 +83,28 @@
 // Batt Reader Definitions
 #define BATTERY_PIN A0
 #define ADC_MAX 4095 // 12-bit ADC
-#define VOLTAGE_DIV_RATIO 2.0
+// Per-node voltage divider ratios — measured (R1+R2)/R2
+#if (PLAYER == PLAYER_SHIFU)
+    #if (NODE_ID == NODE_LEFT_ARM)
+        #define VOLTAGE_DIV_RATIO 2.0556
+    #elif (NODE_ID == NODE_RIGHT_ARM)
+        #define VOLTAGE_DIV_RATIO 2.0553
+    #elif (NODE_ID == NODE_LEFT_LEG)
+        #define VOLTAGE_DIV_RATIO 2.0594
+    #elif (NODE_ID == NODE_RIGHT_LEG)
+        #define VOLTAGE_DIV_RATIO 2.0599
+    #endif
+#elif (PLAYER == PLAYER_STUDENT)
+    #if (NODE_ID == NODE_LEFT_ARM)
+        #define VOLTAGE_DIV_RATIO 2.3 // 2.1010 // Original is commented to make it work
+    #elif (NODE_ID == NODE_RIGHT_ARM)
+        #define VOLTAGE_DIV_RATIO 2.0467
+    #elif (NODE_ID == NODE_LEFT_LEG)
+        #define VOLTAGE_DIV_RATIO 2.0648
+    #elif (NODE_ID == NODE_RIGHT_LEG)
+        #define VOLTAGE_DIV_RATIO 2.0596
+    #endif
+#endif
 #define ADC_REF 3.3
 #define BATT_PERIOD_MS 1000
 #define BATT_VOLT_MAX 4.2
