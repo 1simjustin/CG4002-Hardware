@@ -16,48 +16,128 @@ double degToRad(double deg) {
     return rad;
 }
 
-// Return array of 3 sensor_event_t for accel, gyro, temp respectively
-imu_reading_t calibrate(Adafruit_MPU6050 &mpu) {
-    sensors_event_t a_samples[CALIBRATION_SAMPLES];
-    sensors_event_t g_samples[CALIBRATION_SAMPLES];
-    sensors_event_t t_samples[CALIBRATION_SAMPLES];
+// Compute rotation matrix R that maps measured gravity vector to Z-up (0,0,1)
+// Uses Rodrigues' rotation formula
+void computeRotationMatrix(double gx, double gy, double gz, double R[3][3]) {
+    double mag = sqrt(gx * gx + gy * gy + gz * gz);
 
-    // Collect samples for calibration
+    // Fallback: if no measurable gravity, use identity
+    if (mag < 1e-6) {
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+                R[i][j] = (i == j) ? 1.0 : 0.0;
+        return;
+    }
+
+    // Normalize gravity vector
+    double vx = gx / mag;
+    double vy = gy / mag;
+    double vz = gz / mag;
+
+    // Cross product: v × (0,0,1) = (vy, -vx, 0)
+    double s = sqrt(vx * vx + vy * vy); // sin(theta)
+    double c = vz;                      // cos(theta)
+
+    if (s < 1e-6) {
+        // Gravity is already aligned with Z
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+                R[i][j] = 0.0;
+
+        if (c > 0) {
+            // Already pointing +Z, identity
+            R[0][0] = 1.0;
+            R[1][1] = 1.0;
+            R[2][2] = 1.0;
+        } else {
+            // Pointing -Z, 180° rotation about X axis
+            R[0][0] = 1.0;
+            R[1][1] = -1.0;
+            R[2][2] = -1.0;
+        }
+        return;
+    }
+
+    // Normalized rotation axis components (k_z = 0)
+    double kx = vy / s;
+    double ky = -vx / s;
+
+    double one_minus_c = 1.0 - c;
+
+    R[0][0] = 1.0 - ky * ky * one_minus_c;
+    R[0][1] = kx * ky * one_minus_c;
+    R[0][2] = ky * s;
+
+    R[1][0] = kx * ky * one_minus_c;
+    R[1][1] = 1.0 - kx * kx * one_minus_c;
+    R[1][2] = -kx * s;
+
+    R[2][0] = -ky * s;
+    R[2][1] = kx * s;
+    R[2][2] = c;
+}
+
+// Calibrate IMU: compute rotation matrix from gravity and gyro biases
+imu_calib_t calibrate(Adafruit_MPU6050 &mpu) {
+    sensors_event_t a, g, temp;
+    double sum_ax = 0, sum_ay = 0, sum_az = 0;
+    double sum_gx = 0, sum_gy = 0, sum_gz = 0;
+
+    // Collect samples and accumulate running sums
     for (int i = 0; i < CALIBRATION_SAMPLES; i++) {
-        mpu.getEvent(&a_samples[i], &g_samples[i], &t_samples[i]);
+        mpu.getEvent(&a, &g, &temp);
+        sum_ax += a.acceleration.x;
+        sum_ay += a.acceleration.y;
+        sum_az += a.acceleration.z;
+        sum_gx += g.gyro.x;
+        sum_gy += g.gyro.y;
+        sum_gz += g.gyro.z;
         delay(CALIBRATION_DELAY_MS);
     }
 
-    // Compute average for each sensor
-    imu_reading_t offsets = {0};
-    for (int i = 0; i < CALIBRATION_SAMPLES; i++) {
-        offsets.x += a_samples[i].acceleration.x;
-        offsets.y += a_samples[i].acceleration.y;
-        offsets.z += a_samples[i].acceleration.z;
+    // Compute averages
+    double avg_ax = sum_ax / CALIBRATION_SAMPLES;
+    double avg_ay = sum_ay / CALIBRATION_SAMPLES;
+    double avg_az = sum_az / CALIBRATION_SAMPLES;
 
-        offsets.roll += g_samples[i].gyro.x;
-        offsets.pitch += g_samples[i].gyro.y;
-        offsets.yaw += g_samples[i].gyro.z;
-    }
-    offsets.x /= CALIBRATION_SAMPLES;
-    offsets.y /= CALIBRATION_SAMPLES;
-    offsets.z /= CALIBRATION_SAMPLES;
-    offsets.roll /= CALIBRATION_SAMPLES;
-    offsets.pitch /= CALIBRATION_SAMPLES;
-    offsets.yaw /= CALIBRATION_SAMPLES;
+    imu_calib_t calib = {0};
 
-    return offsets;
+    // Gyro biases (measured in sensor frame)
+    calib.gyro_bias[0] = sum_gx / CALIBRATION_SAMPLES;
+    calib.gyro_bias[1] = sum_gy / CALIBRATION_SAMPLES;
+    calib.gyro_bias[2] = sum_gz / CALIBRATION_SAMPLES;
+
+    // Gravity magnitude from measured vector
+    calib.g_mag = sqrt(avg_ax * avg_ax + avg_ay * avg_ay + avg_az * avg_az);
+
+    // Rotation matrix: sensor frame -> Z-up reference frame
+    computeRotationMatrix(avg_ax, avg_ay, avg_az, calib.R);
+
+    return calib;
 }
 
 void applyCalibration(sensors_event_t *a, sensors_event_t *g,
-                      imu_reading_t *calib) {
-    a->acceleration.x -= calib->x;
-    a->acceleration.y -= calib->y;
-    a->acceleration.z -= calib->z;
+                      imu_calib_t *calib) {
+    // Rotate accelerometer into reference frame and subtract gravity from Z
+    double ax = a->acceleration.x;
+    double ay = a->acceleration.y;
+    double az = a->acceleration.z;
 
-    g->gyro.x -= calib->roll;
-    g->gyro.y -= calib->pitch;
-    g->gyro.z -= calib->yaw;
+    a->acceleration.x =
+        calib->R[0][0] * ax + calib->R[0][1] * ay + calib->R[0][2] * az;
+    a->acceleration.y =
+        calib->R[1][0] * ax + calib->R[1][1] * ay + calib->R[1][2] * az;
+    a->acceleration.z = calib->R[2][0] * ax + calib->R[2][1] * ay +
+                        calib->R[2][2] * az - calib->g_mag;
+
+    // Subtract gyro bias in sensor frame, then rotate into reference frame
+    double gx = g->gyro.x - calib->gyro_bias[0];
+    double gy = g->gyro.y - calib->gyro_bias[1];
+    double gz = g->gyro.z - calib->gyro_bias[2];
+
+    g->gyro.x = calib->R[0][0] * gx + calib->R[0][1] * gy + calib->R[0][2] * gz;
+    g->gyro.y = calib->R[1][0] * gx + calib->R[1][1] * gy + calib->R[1][2] * gz;
+    g->gyro.z = calib->R[2][0] * gx + calib->R[2][1] * gy + calib->R[2][2] * gz;
 }
 
 imu_reading_t windowAvg(imu_reading_t *readings, int size) {
@@ -122,7 +202,7 @@ void imuTask(void *parameter) {
     const EventBits_t calibration_bit = (1 << (imu_id + NUM_IMU));
 
     sensors_event_t a = {0}, g = {0}, temp = {0};
-    imu_reading_t calib_offsets = {0};
+    imu_calib_t calib_offsets = {0};
     imu_reading_t imu_buffer[SLIDING_WINDOW_SIZE] = {0};
 
     int window_idx = 0;
@@ -168,7 +248,8 @@ void imuTask(void *parameter) {
         }
 
         // Check if system is running (running bit is 1) before reading sensors
-        if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) == 0) {
+        if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) ==
+            0) {
             // If not running, wait before checking again
             vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
             continue;
@@ -187,7 +268,9 @@ void imuTask(void *parameter) {
 
 #ifdef USE_AHRS
         filters[imu_id].update(g.gyro.x, g.gyro.y, g.gyro.z, a.acceleration.x,
-                               a.acceleration.y, a.acceleration.z);
+                               a.acceleration.y,
+                               a.acceleration.z + calib_offsets.g_mag // AHRS expects gravity
+                               );
         imu_buffer[window_idx].roll = filters[imu_id].getRoll();
         imu_buffer[window_idx].pitch = filters[imu_id].getPitch();
         imu_buffer[window_idx].yaw = filters[imu_id].getYaw();

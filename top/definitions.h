@@ -79,6 +79,7 @@
 
 #define CALIBRATION_SAMPLES 10
 #define CALIBRATION_DELAY_MS IMU_PERIOD_MS
+#define GRAVITY_ACCEL 9.80665 // Standard gravity m/s^2
 #define SLIDING_WINDOW_SIZE 1
 
 // Batt Reader Definitions

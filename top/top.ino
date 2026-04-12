@@ -12,6 +12,7 @@
  *   - Read from the Comms server and display only the lowest battery level.
  * - Heartbeat
  * - Wireless Communication: Sends sensor data to the Comms server
+ * - Haptics: Sensory feedback after inferencing
  * 
  * Implementation consists of ESP-IDF FreeRTOS tasks for parallel and
  * concurrent operations, utilising 2 cores of the ESP32.

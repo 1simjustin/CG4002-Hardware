@@ -32,9 +32,10 @@ void callback(char *topic, byte *payload, unsigned int length);
 
 // Sensor Functions
 void imuTask(void *parameter);
-imu_reading_t calibrate(Adafruit_MPU6050 &mpu);
+void computeRotationMatrix(double gx, double gy, double gz, double R[3][3]);
+imu_calib_t calibrate(Adafruit_MPU6050 &mpu);
 void applyCalibration(sensors_event_t *a, sensors_event_t *g,
-                      imu_reading_t *calib);
+                      imu_calib_t *calib);
 imu_reading_t windowAvg(imu_reading_t *readings, int size);
 
 // Battery Functions
