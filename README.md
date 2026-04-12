@@ -84,6 +84,8 @@ In `definitions.h`, change these two values to configure which node this firmwar
 | Upper | `0x68` | Upper limb segment (upper arm / thigh) |
 | Lower | `0x69` | Lower limb segment (forearm / shin) |
 
+**Note:** The Adafruit MPU6050 library's `begin()` method performs a WHO_AM_I register check that expects the default MPU6050 device ID. Some compatible IMU chips (e.g. MPU6500, clone variants) return a different WHO_AM_I value, causing `begin()` to fail even though the sensor is fully functional. To use these chips, the WHO_AM_I check in the library must be removed or relaxed. Modify `Adafruit_MPU6050::begin()` in the installed library to skip or bypass the device ID validation.
+
 ## Event Group Bits
 
 The system uses a 24-bit FreeRTOS event group for inter-task state signaling:
