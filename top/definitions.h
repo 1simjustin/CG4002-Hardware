@@ -17,7 +17,7 @@
 #define NODE_LEFT_LEG  3
 #define NODE_RIGHT_LEG 4
 // Toggle the below line to switch between nodes
-#define NODE_ID NODE_RIGHT_ARM
+#define NODE_ID NODE_LEFT_LEG
 
 // Derive NODE string from NODE_ID
 #if (NODE_ID == NODE_LEFT_ARM)
@@ -80,6 +80,8 @@
 #define CALIBRATION_SAMPLES 10
 #define CALIBRATION_DELAY_MS IMU_PERIOD_MS
 #define GRAVITY_ACCEL 9.80665 // Standard gravity m/s^2
+#define MAHONY_KP 5.0f  // Proportional gain (default 0.5, higher = faster convergence)
+#define MAHONY_KI 0.1f  // Integral gain (default 0.0, small value corrects gyro drift)
 #define SLIDING_WINDOW_SIZE 1
 
 // Batt Reader Definitions

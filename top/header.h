@@ -16,7 +16,6 @@
  */
 
 // #define DEBUG
-// #define USE_AHRS
 #define ENABLE_SENSOR_COMMS
 #define ENABLE_WIFI_COMMS
 #define ENABLE_HAPTICS
@@ -43,7 +42,6 @@ typedef struct {
 } imu_reading_t;
 
 typedef struct {
-    double R[3][3];       // Rotation matrix: sensor frame -> Z-up reference frame
     double g_mag;         // Measured gravity magnitude (m/s^2)
     double gyro_bias[3];  // Gyro bias {bx, by, bz} in rad/s
 } imu_calib_t;

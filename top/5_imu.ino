@@ -16,68 +16,23 @@ double degToRad(double deg) {
     return rad;
 }
 
-// Compute rotation matrix R that maps measured gravity vector to Z-up (0,0,1)
-// Uses Rodrigues' rotation formula
-void computeRotationMatrix(double gx, double gy, double gz, double R[3][3]) {
-    double mag = sqrt(gx * gx + gy * gy + gz * gz);
+// Convert quaternion (body→world) to 3x3 rotation matrix
+void quaternionToRotationMatrix(float qw, float qx, float qy, float qz,
+                                double R[3][3]) {
+    R[0][0] = 1.0 - 2.0 * (qy * qy + qz * qz);
+    R[0][1] = 2.0 * (qx * qy - qw * qz);
+    R[0][2] = 2.0 * (qx * qz + qw * qy);
 
-    // Fallback: if no measurable gravity, use identity
-    if (mag < 1e-6) {
-        for (int i = 0; i < 3; i++)
-            for (int j = 0; j < 3; j++)
-                R[i][j] = (i == j) ? 1.0 : 0.0;
-        return;
-    }
+    R[1][0] = 2.0 * (qx * qy + qw * qz);
+    R[1][1] = 1.0 - 2.0 * (qx * qx + qz * qz);
+    R[1][2] = 2.0 * (qy * qz - qw * qx);
 
-    // Normalize gravity vector
-    double vx = gx / mag;
-    double vy = gy / mag;
-    double vz = gz / mag;
-
-    // Cross product: v × (0,0,1) = (vy, -vx, 0)
-    double s = sqrt(vx * vx + vy * vy); // sin(theta)
-    double c = vz;                      // cos(theta)
-
-    if (s < 1e-6) {
-        // Gravity is already aligned with Z
-        for (int i = 0; i < 3; i++)
-            for (int j = 0; j < 3; j++)
-                R[i][j] = 0.0;
-
-        if (c > 0) {
-            // Already pointing +Z, identity
-            R[0][0] = 1.0;
-            R[1][1] = 1.0;
-            R[2][2] = 1.0;
-        } else {
-            // Pointing -Z, 180° rotation about X axis
-            R[0][0] = 1.0;
-            R[1][1] = -1.0;
-            R[2][2] = -1.0;
-        }
-        return;
-    }
-
-    // Normalized rotation axis components (k_z = 0)
-    double kx = vy / s;
-    double ky = -vx / s;
-
-    double one_minus_c = 1.0 - c;
-
-    R[0][0] = 1.0 - ky * ky * one_minus_c;
-    R[0][1] = kx * ky * one_minus_c;
-    R[0][2] = ky * s;
-
-    R[1][0] = kx * ky * one_minus_c;
-    R[1][1] = 1.0 - kx * kx * one_minus_c;
-    R[1][2] = -kx * s;
-
-    R[2][0] = -ky * s;
-    R[2][1] = kx * s;
-    R[2][2] = c;
+    R[2][0] = 2.0 * (qx * qz - qw * qy);
+    R[2][1] = 2.0 * (qy * qz + qw * qx);
+    R[2][2] = 1.0 - 2.0 * (qx * qx + qy * qy);
 }
 
-// Calibrate IMU: compute rotation matrix from gravity and gyro biases
+// Calibrate IMU: compute gyro biases and gravity magnitude
 imu_calib_t calibrate(Adafruit_MPU6050 &mpu) {
     sensors_event_t a, g, temp;
     double sum_ax = 0, sum_ay = 0, sum_az = 0;
@@ -110,34 +65,16 @@ imu_calib_t calibrate(Adafruit_MPU6050 &mpu) {
     // Gravity magnitude from measured vector
     calib.g_mag = sqrt(avg_ax * avg_ax + avg_ay * avg_ay + avg_az * avg_az);
 
-    // Rotation matrix: sensor frame -> Z-up reference frame
-    computeRotationMatrix(avg_ax, avg_ay, avg_az, calib.R);
-
     return calib;
 }
 
 void applyCalibration(sensors_event_t *a, sensors_event_t *g,
                       imu_calib_t *calib) {
-    // Rotate accelerometer into reference frame and subtract gravity from Z
-    double ax = a->acceleration.x;
-    double ay = a->acceleration.y;
-    double az = a->acceleration.z;
-
-    a->acceleration.x =
-        calib->R[0][0] * ax + calib->R[0][1] * ay + calib->R[0][2] * az;
-    a->acceleration.y =
-        calib->R[1][0] * ax + calib->R[1][1] * ay + calib->R[1][2] * az;
-    a->acceleration.z = calib->R[2][0] * ax + calib->R[2][1] * ay +
-                        calib->R[2][2] * az - calib->g_mag;
-
-    // Subtract gyro bias in sensor frame, then rotate into reference frame
-    double gx = g->gyro.x - calib->gyro_bias[0];
-    double gy = g->gyro.y - calib->gyro_bias[1];
-    double gz = g->gyro.z - calib->gyro_bias[2];
-
-    g->gyro.x = calib->R[0][0] * gx + calib->R[0][1] * gy + calib->R[0][2] * gz;
-    g->gyro.y = calib->R[1][0] * gx + calib->R[1][1] * gy + calib->R[1][2] * gz;
-    g->gyro.z = calib->R[2][0] * gx + calib->R[2][1] * gy + calib->R[2][2] * gz;
+    // Only subtract gyro bias in sensor frame
+    // World-frame rotation is applied after the Mahony filter update
+    g->gyro.x -= calib->gyro_bias[0];
+    g->gyro.y -= calib->gyro_bias[1];
+    g->gyro.z -= calib->gyro_bias[2];
 }
 
 imu_reading_t windowAvg(imu_reading_t *readings, int size) {
@@ -187,7 +124,8 @@ bool imu_setup(int idx) {
 
 void filter_setup(int idx) {
     filters[idx].begin(IMU_FREQ_HZ);
-    return;
+    filters[idx].setKp(MAHONY_KP);
+    filters[idx].setKi(MAHONY_KI);
 }
 
 /**
@@ -215,9 +153,7 @@ void imuTask(void *parameter) {
             imu_success = imu_setup(imu_id);
             // Perform initialisation
             if (imu_success) {
-#if defined(USE_AHRS)
                 filter_setup(imu_id);
-#endif
                 // Set IMU bit to 1 to indicate IMU is initialized
                 xEventGroupSetBits(xSystemEventGroup, (1 << imu_id));
                 // Set calibration bit to 1 to indicate IMU is initialized but
@@ -261,24 +197,34 @@ void imuTask(void *parameter) {
         }
         applyCalibration(&a, &g, &calib_offsets);
 
-        // Store raw readings in buffer for sliding window average
-        imu_buffer[window_idx].x = a.acceleration.x;
-        imu_buffer[window_idx].y = a.acceleration.y;
-        imu_buffer[window_idx].z = a.acceleration.z;
+        // Feed bias-corrected gyro + raw accel (with gravity) into Mahony filter
+        filters[imu_id].updateIMU(g.gyro.x, g.gyro.y, g.gyro.z,
+                                  a.acceleration.x, a.acceleration.y,
+                                  a.acceleration.z);
 
-#ifdef USE_AHRS
-        filters[imu_id].update(g.gyro.x, g.gyro.y, g.gyro.z, a.acceleration.x,
-                               a.acceleration.y,
-                               a.acceleration.z + calib_offsets.g_mag // AHRS expects gravity
-                               );
-        imu_buffer[window_idx].roll = filters[imu_id].getRoll();
-        imu_buffer[window_idx].pitch = filters[imu_id].getPitch();
-        imu_buffer[window_idx].yaw = filters[imu_id].getYaw();
-#else
-        imu_buffer[window_idx].roll = g.gyro.x;
-        imu_buffer[window_idx].pitch = g.gyro.y;
-        imu_buffer[window_idx].yaw = g.gyro.z;
-#endif
+        // Get current orientation quaternion and build rotation matrix
+        float qw, qx, qy, qz;
+        filters[imu_id].getQuaternion(&qw, &qx, &qy, &qz);
+        double R[3][3];
+        quaternionToRotationMatrix(qw, qx, qy, qz, R);
+
+        // Rotate accel into world frame and subtract gravity from Z
+        double ax = a.acceleration.x;
+        double ay = a.acceleration.y;
+        double az = a.acceleration.z;
+        imu_buffer[window_idx].x = R[0][0] * ax + R[0][1] * ay + R[0][2] * az;
+        imu_buffer[window_idx].y = R[1][0] * ax + R[1][1] * ay + R[1][2] * az;
+        imu_buffer[window_idx].z =
+            R[2][0] * ax + R[2][1] * ay + R[2][2] * az - calib_offsets.g_mag;
+
+        // World-frame angular velocity (rad/s)
+        double gx = g.gyro.x, gy = g.gyro.y, gz = g.gyro.z;
+        imu_buffer[window_idx].roll =
+            R[0][0] * gx + R[0][1] * gy + R[0][2] * gz;
+        imu_buffer[window_idx].pitch =
+            R[1][0] * gx + R[1][1] * gy + R[1][2] * gz;
+        imu_buffer[window_idx].yaw =
+            R[2][0] * gx + R[2][1] * gy + R[2][2] * gz;
 
         // Update indices
         sz = min(sz + 1, SLIDING_WINDOW_SIZE);

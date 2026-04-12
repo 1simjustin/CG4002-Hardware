@@ -32,7 +32,7 @@ void callback(char *topic, byte *payload, unsigned int length);
 
 // Sensor Functions
 void imuTask(void *parameter);
-void computeRotationMatrix(double gx, double gy, double gz, double R[3][3]);
+void quaternionToRotationMatrix(float qw, float qx, float qy, float qz, double R[3][3]);
 imu_calib_t calibrate(Adafruit_MPU6050 &mpu);
 void applyCalibration(sensors_event_t *a, sensors_event_t *g,
                       imu_calib_t *calib);
