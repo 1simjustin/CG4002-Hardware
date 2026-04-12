@@ -1,5 +1,5 @@
 // Battery voltage is read as an analog value and converted to actual voltage
-// using a voltage divider We use a 1:1 voltage divider for simplicity
+// using a per-node calibrated voltage divider ratio (see VOLTAGE_DIV_RATIO in definitions.h)
 
 void voltage_reader_setup() {
     pinMode(BATTERY_PIN, INPUT);

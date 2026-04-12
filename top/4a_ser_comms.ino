@@ -55,7 +55,7 @@ void serialSensorsTask(void *parameter) {
                 Serial.print(" Z=");
                 Serial.print(sensor_readings[sensor_id].z);
 
-                Serial.print(" | IMU Gyro (deg/s): R=");
+                Serial.print(" | Gyro (rad/s): R=");
                 Serial.print(sensor_readings[sensor_id].roll);
                 Serial.print(" P=");
                 Serial.print(sensor_readings[sensor_id].pitch);

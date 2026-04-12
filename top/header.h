@@ -36,9 +36,9 @@
  * Helper Structs
  */
 typedef struct {
-    double x, y, z; // Accelerometer readings
+    double x, y, z; // World-frame linear acceleration (m/s^2, gravity removed)
     double roll, pitch,
-        yaw; // Gyro readings (or AHRS angles if USE_AHRS is defined)
+        yaw; // World-frame angular velocity (rad/s)
 } imu_reading_t;
 
 typedef struct {
@@ -84,10 +84,12 @@ TaskHandle_t CommsSensorsTaskHandle = NULL;
 /**
  * Event Group is fixed 24 bits
  * Static Event Group is used so that it is precompiled
- * 
+ *
  * BITS 0-1: IMU 0-1 initialization status (1 = initialized, 0 = not initialized)
  * BITS 2-3: IMU 0-1 calibration pending status (1 = pending calibration, 0 = not pending)
- * BIT 4: COMMS_RUNNING_FLAG_BIT (1 = system running after scheduled start time
+ * BIT 4: COMMS_FLAG_BIT (1 = WiFi + MQTT connected)
+ * BIT 5: COMMS_RUNNING_FLAG_BIT (1 = system actively sending data)
+ * BIT 6: HAPTICS_ON_BIT (1 = haptic feedback triggered)
  */
 EventGroupHandle_t xSystemEventGroup = NULL;
 StaticEventGroup_t xSystemEventGroupBuffer;

@@ -35,7 +35,7 @@ Numbers in brackets = task priority
 | `3_setup.ino` | I2C init, semaphore/queue creation, event group init |
 | `4a_ser_comms.ino` | Serial fallback: `serialSensorsTask`, `serialBattTask` |
 | `4b_comms.ino` | WiFi/MQTT: watchdog, sensor publishing, MQTT callback, NTP sync |
-| `5_imu.ino` | IMU setup, gravity-based calibration, `imuTask` (50 Hz read loop) |
+| `5_imu.ino` | IMU setup, calibration, Mahony AHRS world-frame transform, `imuTask` (50 Hz read loop) |
 | `6_batt.ino` | Battery ADC reading, SOC calculation, display task |
 | `7_haptics.ino` | DRV2605 setup, haptic pulse task |
 | `8_heartbeat.ino` | Multi-state heartbeat LED (init/calib/wifi/running/idle) |
@@ -49,7 +49,6 @@ Defined in `header.h`, toggled by commenting/uncommenting:
 
 ```c
 // #define DEBUG              // Enable Serial debug prints
-// #define USE_AHRS           // Use Mahony AHRS filter instead of raw gyro
 #define ENABLE_SENSOR_COMMS   // Enable sensor data transmission
 #define ENABLE_WIFI_COMMS     // Use WiFi/MQTT (else serial fallback)
 #define ENABLE_HAPTICS        // Enable haptic feedback (student nodes only)
@@ -109,42 +108,56 @@ The system uses a 24-bit FreeRTOS event group for inter-task state signaling:
 
 All data queues use `xQueueOverwrite` (latest-value semantics, never blocks the producer).
 
-## IMU Calibration
+## IMU World-Frame Transform
 
-### Gravity-Based Frame Transform
+### Real-Time Mahony AHRS Filter
 
-At calibration time (device at rest), the firmware measures the gravity vector and computes a rotation matrix to establish a consistent Z-up reference frame regardless of how the device is mounted on the body.
+The firmware uses a Mahony AHRS (Attitude and Heading Reference System) filter to continuously track device orientation in real time. Unlike a one-time calibration-based rotation matrix, the Mahony filter updates its orientation estimate every timestep, so the world-frame transform adapts as the device moves.
 
-**Process:**
+**Pipeline (per timestep at 50 Hz):**
 
-1. Collect `CALIBRATION_SAMPLES` (10) readings at 50 Hz
-2. Average accelerometer readings to get the gravity vector `(avg_ax, avg_ay, avg_az)`
-3. Average gyroscope readings to get bias offsets `gyro_bias[3]`
-4. Compute gravity magnitude: `g_mag = sqrt(ax^2 + ay^2 + az^2)`
-5. Compute rotation matrix `R` via Rodrigues' formula that maps the measured gravity direction to `(0, 0, 1)` (Z-up)
-
-**Per-reading application (`applyCalibration`):**
-
-1. **Accelerometer:** Rotate into reference frame, subtract gravity from Z only
+1. Read raw accelerometer and gyroscope data from MPU6050
+2. Subtract gyro bias (measured at calibration) in sensor frame
+3. Feed bias-corrected gyro + raw accel (with gravity) into the Mahony filter — the filter needs gravity in the accel signal for tilt correction
+4. Extract the current orientation quaternion from the filter
+5. Convert quaternion to a 3×3 rotation matrix `R`
+6. Rotate accelerometer reading into world frame and subtract gravity from Z:
    ```
-   a_ref = R * a_raw - (0, 0, g_mag)
+   a_world = R * a_raw - (0, 0, g_mag)
    ```
-2. **Gyroscope:** Subtract bias in sensor frame, then rotate
+7. Rotate gyroscope reading into world frame:
    ```
-   g_ref = R * (g_raw - gyro_bias)
+   g_world = R * (g_raw - gyro_bias)
    ```
 
-This ensures accelerometer output reflects only linear acceleration (no gravity leakage) and all axes are in a consistent world frame across different mounting orientations.
+This ensures accelerometer output reflects only linear acceleration (no gravity leakage) and all axes are in a consistent world frame, regardless of device mounting orientation — and the transform updates continuously as the device moves.
 
-### Calibration Data Structure
+### Calibration
+
+At startup (and on receiving a `start` command), the device is held at rest and:
+
+1. Collects `CALIBRATION_SAMPLES` (10) readings at 50 Hz
+2. Averages gyroscope readings to compute bias offsets `gyro_bias[3]`
+3. Computes gravity magnitude from averaged accelerometer vector: `g_mag = sqrt(ax² + ay² + az²)`
 
 ```c
 typedef struct {
-    double R[3][3];       // Rotation matrix: sensor frame -> Z-up reference frame
     double g_mag;         // Measured gravity magnitude (m/s^2)
-    double gyro_bias[3];  // Gyro bias (rad/s)
+    double gyro_bias[3];  // Gyro bias {bx, by, bz} in rad/s
 } imu_calib_t;
 ```
+
+### Mahony Filter Tuning
+
+The filter gains are configured in `definitions.h`:
+
+```c
+#define MAHONY_KP 5.0f   // Proportional gain (default 0.5, higher = faster convergence)
+#define MAHONY_KI 0.1f   // Integral gain (default 0.0, small value corrects gyro drift)
+```
+
+- **Kp=5.0** is 10× the library default — provides fast convergence for wearable use where orientation changes frequently. If oscillation is observed at rest, reduce toward 2.0.
+- **Ki=0.1** enables slow integral feedback to correct persistent gyro drift. Low enough to avoid windup.
 
 ### When Calibration Runs
 
@@ -181,7 +194,7 @@ typedef struct {
 
 - `sequence`: Unix timestamp in milliseconds (from NTP if synced, else `millis()`)
 - `accel`: Linear acceleration in m/s^2 (gravity removed, in Z-up reference frame)
-- `gyro`: Angular velocity in rad/s (or degrees if AHRS enabled), in Z-up reference frame
+- `gyro`: Angular velocity in rad/s, in Z-up world reference frame
 
 ### Connection Architecture
 
@@ -248,8 +261,8 @@ Available only on student nodes (`PLAYER_STUDENT` + `ENABLE_HAPTICS`).
 ```c
 // Sensor reading (used in queues and sliding window)
 typedef struct {
-    double x, y, z;           // Accelerometer (m/s^2)
-    double roll, pitch, yaw;  // Gyroscope (rad/s) or AHRS angles (deg)
+    double x, y, z;           // World-frame linear acceleration (m/s^2, gravity removed)
+    double roll, pitch, yaw;  // World-frame angular velocity (rad/s)
 } imu_reading_t;
 
 // Battery reading
@@ -260,8 +273,7 @@ typedef struct {
 
 // Calibration data (per IMU, local to imuTask)
 typedef struct {
-    double R[3][3];       // Rotation matrix: sensor -> Z-up frame
     double g_mag;         // Measured gravity magnitude (m/s^2)
-    double gyro_bias[3];  // Gyro bias (rad/s)
+    double gyro_bias[3];  // Gyro bias {bx, by, bz} in rad/s
 } imu_calib_t;
 ```

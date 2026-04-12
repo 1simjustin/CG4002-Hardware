@@ -10,8 +10,6 @@ void setup() {
 
     BaseType_t result;
 
-    // Initialize Voltage Reader
-
     // Initialize Semaphores
     createSemaphores();
 
@@ -153,13 +151,11 @@ void setup() {
     // #if defined(DEBUG)
     //     result = xTaskCreatePinnedToCore(monitorTask,        // Task function
     //                                      "MonitorTask",      // Task name
-    //                                      STACK_SIZE,         // Stack size
-    //                                      (bytes) NULL,               //
-    //                                      Parameters 1,                  //
-    //                                      Priority (lowest)
+    //                                      STACK_SIZE,         // Stack size (bytes)
+    //                                      NULL,               // Parameters
+    //                                      1,                  // Priority (lowest)
     //                                      &MonitorTaskHandle, // Task handle
-    //                                      COMMS_CORE          // Core 0 for
-    //                                      comms
+    //                                      COMMS_CORE          // Core 0 for comms
     //     );
     //     if (result != pdPASS) {
     //         Serial.println("Failed to create task: MonitorTask");
