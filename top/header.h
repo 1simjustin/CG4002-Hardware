@@ -90,6 +90,7 @@ TaskHandle_t CommsSensorsTaskHandle = NULL;
  * BIT 4: COMMS_FLAG_BIT (1 = WiFi + MQTT connected)
  * BIT 5: COMMS_RUNNING_FLAG_BIT (1 = system actively sending data)
  * BIT 6: HAPTICS_ON_BIT (1 = haptic feedback triggered)
+ * BIT 7: NTP_SYNCED_BIT (1 = NTP time synced, 0 = running without NTP)
  */
 EventGroupHandle_t xSystemEventGroup = NULL;
 StaticEventGroup_t xSystemEventGroupBuffer;

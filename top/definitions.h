@@ -76,6 +76,8 @@
 #define COMMS_RUNNING_FLAG_BIT (1 << (NUM_IMU * 2 + 1))
 // Bit NUM_IMU*2+2 for haptics on status
 #define HAPTICS_ON_BIT (1 << (NUM_IMU * 2 + 2))
+// Bit NUM_IMU*2+3 for NTP sync status (1 = NTP synced, 0 = no NTP)
+#define NTP_SYNCED_BIT (1 << (NUM_IMU * 2 + 3))
 
 #define CALIBRATION_SAMPLES 10
 #define CALIBRATION_DELAY_MS IMU_PERIOD_MS
@@ -124,6 +126,7 @@
 #define HB_INIT_BLINK_PERIOD_MS 1000
 #define HB_CALIB_BLINK_PERIOD_MS 500
 #define HB_WIFI_BLINK_PERIOD_MS 250
+#define HB_RUNNING_NO_NTP_PWM 64
 
 // Haptics Definitions
 #define HAPTIC_PIN D7

@@ -28,9 +28,14 @@ void hbDispTask(void *parameter) {
             continue;
         }
 
-        // If system is running, set LED to solid on
+        // If system is running, set LED to solid on (bright if NTP synced,
+        // dim if running without NTP — timestamps are not NTP-aligned)
         if ((system_bits & COMMS_RUNNING_FLAG_BIT) != 0) {
-            digitalWrite(HB_LED_PIN, HIGH);
+            if ((system_bits & NTP_SYNCED_BIT) != 0) {
+                digitalWrite(HB_LED_PIN, HIGH);
+            } else {
+                analogWrite(HB_LED_PIN, HB_RUNNING_NO_NTP_PWM);
+            }
             vTaskDelay(pdMS_TO_TICKS(50));
         }
 

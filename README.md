@@ -96,6 +96,7 @@ The system uses a 24-bit FreeRTOS event group for inter-task state signaling:
 | 4 | `COMMS_FLAG_BIT` | WiFi + MQTT connected |
 | 5 | `COMMS_RUNNING_FLAG_BIT` | System actively sending data (after start command) |
 | 6 | `HAPTICS_ON_BIT` | Haptic feedback triggered by low inference score |
+| 7 | `NTP_SYNCED_BIT` | NTP time synced (1 = synced, 0 = running without NTP) |
 
 ## Queues and Semaphores
 
@@ -216,6 +217,7 @@ NTP is attempted at WiFi connection time (max 3 retries, 10s timeout each). If N
 - Scheduled start commands (`start_at` timestamp) are ignored
 - The node starts sending data immediately on receiving a start command
 - Packet timestamps use `millis()` instead of Unix time
+- The heartbeat LED shows **dim solid** (instead of bright solid) while running, so the user can tell at a glance that outgoing packets are not NTP-aligned. `NTP_SYNCED_BIT` in the event group reflects this state.
 
 ### WiFi Reconnection
 
@@ -244,7 +246,8 @@ The heartbeat LED on `HB_LED_PIN` (D3) indicates system state:
 | Calibration pending | 2 Hz blink | IMU initialized, calibration in progress |
 | WiFi/MQTT pending | 4 Hz blink | Calibrated, waiting for connection |
 | Idle (connected) | Breathing | Connected but not running |
-| Running | Solid on | Actively sending sensor data |
+| Running (NTP synced) | Solid bright | Actively sending sensor data with NTP-aligned timestamps |
+| Running (no NTP) | Solid dim (~25%) | Sending sensor data, but NTP sync failed — timestamps use `millis()` and are not wall-clock aligned |
 
 ## Haptic Feedback
 

@@ -27,6 +27,7 @@ void syncNTP() {
 
             if (ntp_retries >= NTP_MAX_RETRIES) {
                 ntpSynced = false;
+                xEventGroupClearBits(xSystemEventGroup, NTP_SYNCED_BIT);
                 xSemaphoreTake(xSerialMutex, portMAX_DELAY);
                 Serial.println("\nNTP sync failed — scheduled starts will fall back to immediate");
                 xSemaphoreGive(xSerialMutex);
@@ -49,6 +50,7 @@ void syncNTP() {
     }
 
     ntpSynced = true;
+    xEventGroupSetBits(xSystemEventGroup, NTP_SYNCED_BIT);
     xSemaphoreTake(xSerialMutex, portMAX_DELAY);
     Serial.println("\nNTP time synced");
     xSemaphoreGive(xSerialMutex);
