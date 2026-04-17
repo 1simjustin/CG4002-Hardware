@@ -105,82 +105,84 @@ def main():
             print("Sent start command to ESP32.")
 
             try:
-              while not shutdown[0]:
-                now = time.monotonic()
+                while not shutdown[0]:
+                    now = time.monotonic()
 
-                # Duration limit
-                if args.duration and (now - start_time) >= args.duration:
-                    print(f"\nDuration limit ({args.duration} s) reached — stopping.")
-                    break
+                    # Duration limit
+                    if args.duration and (now - start_time) >= args.duration:
+                        print(f"\nDuration limit ({args.duration} s) reached — stopping.")
+                        break
 
-                # Print reliability stats periodically
-                if now - last_status_time >= STATUS_INTERVAL_S:
-                    elapsed_window = now - window_start_time
-                    expected = int(50 * elapsed_window)  # 50 Hz
-                    parts = []
-                    for imu_id in range(NUM_IMUS):
-                        got = window_pkt_counts[imu_id]
-                        pct = 100.0 * got / expected if expected > 0 else 0.0
-                        parts.append(f"IMU{imu_id}: {got}/{expected} pkts ({pct:.1f}%)")
-                    ts_str = datetime.now().strftime("%H:%M:%S")
-                    print(f"[{ts_str}] " + " | ".join(parts))
+                    # Print reliability stats periodically
+                    if now - last_status_time >= STATUS_INTERVAL_S:
+                        elapsed_window = now - window_start_time
+                        expected = int(50 * elapsed_window)  # 50 Hz
+                        parts = []
+                        for imu_id in range(NUM_IMUS):
+                            got = window_pkt_counts[imu_id]
+                            pct = 100.0 * got / expected if expected > 0 else 0.0
+                            parts.append(f"IMU{imu_id}: {got}/{expected} pkts ({pct:.1f}%)")
+                        ts_str = datetime.now().strftime("%H:%M:%S")
+                        print(f"[{ts_str}] " + " | ".join(parts))
 
-                    # Reset window counters
-                    window_pkt_counts.clear()
-                    window_start_time = now
-                    last_status_time  = now
+                        # Reset window counters
+                        window_pkt_counts.clear()
+                        window_start_time = now
+                        last_status_time  = now
 
-                # Read a line
-                try:
-                    raw = ser.readline()
-                    if not raw:
+                    # Read a line
+                    try:
+                        raw = ser.readline()
+                        if not raw:
+                            continue
+                        line = raw.decode("utf-8", errors="replace").strip()
+                    except serial.SerialException as exc:
+                        print(f"Serial error: {exc}")
+                        break
+
+                    m = _LINE_RE.match(line)
+                    if not m:
                         continue
-                    line = raw.decode("utf-8", errors="replace").strip()
-                except serial.SerialException as exc:
-                    print(f"Serial error: {exc}")
-                    break
 
-                m = _LINE_RE.match(line)
-                if not m:
-                    continue
+                    imu_id = int(m.group(1))
+                    sample = {
+                        "timestamp_s": time.time(),
+                        "imu_id":      imu_id,
+                        "ax":          float(m.group(2)),
+                        "ay":          float(m.group(3)),
+                        "az":          float(m.group(4)),
+                        "groll":       float(m.group(5)),
+                        "gpitch":      float(m.group(6)),
+                        "gyaw":        float(m.group(7)),
+                    }
 
-                imu_id = int(m.group(1))
-                sample = {
-                    "timestamp_s": time.time(),
-                    "imu_id":      imu_id,
-                    "ax":          float(m.group(2)),
-                    "ay":          float(m.group(3)),
-                    "az":          float(m.group(4)),
-                    "groll":       float(m.group(5)),
-                    "gpitch":      float(m.group(6)),
-                    "gyaw":        float(m.group(7)),
-                }
+                    packet_counts[imu_id]        += 1
+                    window_pkt_counts[imu_id]    += 1
+                    latest_sample[imu_id]         = sample
 
-                packet_counts[imu_id]        += 1
-                window_pkt_counts[imu_id]    += 1
-                latest_sample[imu_id]         = sample
+                    if args.verbose:
+                        ts = datetime.fromtimestamp(sample["timestamp_s"]).strftime("%H:%M:%S.%f")[:-3]
+                        print(
+                            f"[{ts}] IMU{imu_id} | "
+                            f"Accel: X={sample['ax']:8.4f}  Y={sample['ay']:8.4f}  Z={sample['az']:8.4f} m/s² | "
+                            f"Gyro:  R={sample['groll']:8.4f}  P={sample['gpitch']:8.4f}  Y={sample['gyaw']:8.4f} rad/s"
+                        )
 
-                if args.verbose:
-                    ts = datetime.fromtimestamp(sample["timestamp_s"]).strftime("%H:%M:%S.%f")[:-3]
-                    print(
-                        f"[{ts}] IMU{imu_id} | "
-                        f"Accel: X={sample['ax']:8.4f}  Y={sample['ay']:8.4f}  Z={sample['az']:8.4f} m/s² | "
-                        f"Gyro:  R={sample['groll']:8.4f}  P={sample['gpitch']:8.4f}  Y={sample['gyaw']:8.4f} rad/s"
-                    )
+                    # Downsample to CSV (log_interval=0 means log every packet)
+                    if args.log_interval == 0 or now - last_log_time[imu_id] >= args.log_interval:
+                        writer.writerow([
+                            f"{sample['timestamp_s']:.3f}",
+                            imu_id,
+                            sample["ax"], sample["ay"], sample["az"],
+                            sample["groll"], sample["gpitch"], sample["gyaw"],
+                        ])
+                        csv_file.flush()
+                        last_log_time[imu_id] = now
 
-                # Downsample to CSV (log_interval=0 means log every packet)
-                if args.log_interval == 0 or now - last_log_time[imu_id] >= args.log_interval:
-                    writer.writerow([
-                        f"{sample['timestamp_s']:.3f}",
-                        imu_id,
-                        sample["ax"], sample["ay"], sample["az"],
-                        sample["groll"], sample["gpitch"], sample["gyaw"],
-                    ])
-                    csv_file.flush()
-                    last_log_time[imu_id] = now
-
-            # Signal the ESP32 to stop streaming (clears COMMS_RUNNING_FLAG_BIT)
-            ser.write(b'2')
+            finally:
+                # Signal the ESP32 to stop streaming (clears COMMS_RUNNING_FLAG_BIT)
+                ser.write(b'2')
+                print("Sent stop command to ESP32.")
 
     # Final summary
     total_elapsed = time.monotonic() - start_time
