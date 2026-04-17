@@ -2,6 +2,32 @@
 
 CG4002 Computer Engineering Capstone Project — ESP32 FreeRTOS firmware for wearable IMU nodes.
 
+## Before You Build: Missing `0_certificate.ino`
+
+`0_certificate.ino` is **not included in this repository** as it contains sensitive credentials (WiFi password and TLS CA certificate). It is listed in `.gitignore` to prevent accidental commits.
+
+You must create it manually in the `top/` folder before compiling. The file must define the following two variables:
+
+```cpp
+// top/0_certificate.ino
+
+const char* ssid     = "your_wifi_ssid";
+const char* password = "your_wifi_password";
+
+const char* ca_cert = R"EOF(
+-----BEGIN CERTIFICATE-----
+<your CA certificate here>
+-----END CERTIFICATE-----
+)EOF";
+```
+
+- `ssid` / `password` — credentials for the WiFi network the node will connect to
+- `ca_cert` — the CA certificate used to verify the MQTT broker's TLS certificate
+
+Without this file, the project will fail to compile. If you are only using serial mode (`ENABLE_SENSOR_COMMS` only, with `ENABLE_WIFI_COMMS` commented out), the file still needs to exist but the values are unused — you can leave them as empty strings.
+
+---
+
 ## Overview
 
 Each node is an ESP32 with dual MPU6050 IMUs (upper + lower limb), a battery monitor, heartbeat LED, battery LED, and optional haptic feedback (DRV2605). The system supports 8 nodes across 2 players (4 body parts each), communicating over MQTT/TLS to a central laptop server.
