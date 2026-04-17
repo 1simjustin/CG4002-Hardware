@@ -45,21 +45,21 @@ void serialSensorsTask(void *parameter) {
                 if (!(expected_imu_bits & (1 << sensor_id)))
                     continue;
 
-                Serial.print("IMU ID: ");
+                Serial.print("ID: ");
                 Serial.print(sensor_id);
 
-                Serial.print(" | Acceleration (m/s^2): X=");
+                Serial.print(" | ");
                 Serial.print(sensor_readings[sensor_id].x);
-                Serial.print(" Y=");
+                Serial.print(" ");
                 Serial.print(sensor_readings[sensor_id].y);
-                Serial.print(" Z=");
+                Serial.print(" ");
                 Serial.print(sensor_readings[sensor_id].z);
 
-                Serial.print(" | Gyro (rad/s): R=");
+                Serial.print(" | ");
                 Serial.print(sensor_readings[sensor_id].roll);
-                Serial.print(" P=");
+                Serial.print(" ");
                 Serial.print(sensor_readings[sensor_id].pitch);
-                Serial.print(" Y=");
+                Serial.print(" ");
                 Serial.print(sensor_readings[sensor_id].yaw);
                 Serial.println();
             }

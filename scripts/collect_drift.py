@@ -25,9 +25,9 @@ from datetime import datetime, timezone
 # Serial line format produced by 4a_ser_comms.ino:
 #   IMU ID: 0 | Acceleration (m/s^2): X=0.01 Y=-0.02 Z=0.00 | Gyro (rad/s): R=0.001 P=-0.000 Y=0.002
 _LINE_RE = re.compile(
-    r"IMU ID:\s*(\d+)"
-    r"\s*\|\s*Acceleration \(m/s\^2\):\s*X=([+-]?\d+\.\d+)\s+Y=([+-]?\d+\.\d+)\s+Z=([+-]?\d+\.\d+)"
-    r"\s*\|\s*Gyro \(rad/s\):\s*R=([+-]?\d+\.\d+)\s+P=([+-]?\d+\.\d+)\s+Y=([+-]?\d+\.\d+)"
+    r"ID:\s*(\d+)"
+    r"\s*\|\s*([+-]?\d+\.\d+)\s+([+-]?\d+\.\d+)\s+([+-]?\d+\.\d+)"
+    r"\s*\|\s*([+-]?\d+\.\d+)\s+([+-]?\d+\.\d+)\s+([+-]?\d+\.\d+)"
 )
 
 NUM_IMUS = 2
