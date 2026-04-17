@@ -45,12 +45,17 @@ def parse_args():
                    help="Stop after this many seconds (default: run until Ctrl-C)")
     p.add_argument("--output", default=None,
                    help="Output CSV path (default: drift_YYYYMMDD_HHMMSS.csv)")
+    p.add_argument("--verbose", action="store_true",
+                   help="Print every received packet to the terminal")
     return p.parse_args()
+
+
+OUTPUT_DIR = "output"
 
 
 def make_output_path():
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"drift_{ts}.csv"
+    return f"{OUTPUT_DIR}/drift_{ts}.csv"
 
 
 def main():
@@ -94,7 +99,13 @@ def main():
         writer.writerow(["timestamp_s", "imu_id", "ax", "ay", "az", "groll", "gpitch", "gyaw"])
 
         with serial.Serial(args.port, args.baud, timeout=1) as ser:
-            while not shutdown[0]:
+            # Signal the ESP32 to start streaming (sets COMMS_RUNNING_FLAG_BIT)
+            time.sleep(0.5)  # brief settle after port open
+            ser.write(b'1')
+            print("Sent start command to ESP32.")
+
+            try:
+              while not shutdown[0]:
                 now = time.monotonic()
 
                 # Duration limit
@@ -149,8 +160,16 @@ def main():
                 window_pkt_counts[imu_id]    += 1
                 latest_sample[imu_id]         = sample
 
-                # Downsample to CSV
-                if now - last_log_time[imu_id] >= args.log_interval:
+                if args.verbose:
+                    ts = datetime.fromtimestamp(sample["timestamp_s"]).strftime("%H:%M:%S.%f")[:-3]
+                    print(
+                        f"[{ts}] IMU{imu_id} | "
+                        f"Accel: X={sample['ax']:8.4f}  Y={sample['ay']:8.4f}  Z={sample['az']:8.4f} m/s² | "
+                        f"Gyro:  R={sample['groll']:8.4f}  P={sample['gpitch']:8.4f}  Y={sample['gyaw']:8.4f} rad/s"
+                    )
+
+                # Downsample to CSV (log_interval=0 means log every packet)
+                if args.log_interval == 0 or now - last_log_time[imu_id] >= args.log_interval:
                     writer.writerow([
                         f"{sample['timestamp_s']:.3f}",
                         imu_id,
@@ -159,6 +178,9 @@ def main():
                     ])
                     csv_file.flush()
                     last_log_time[imu_id] = now
+
+            # Signal the ESP32 to stop streaming (clears COMMS_RUNNING_FLAG_BIT)
+            ser.write(b'2')
 
     # Final summary
     total_elapsed = time.monotonic() - start_time
