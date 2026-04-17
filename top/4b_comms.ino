@@ -256,6 +256,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
         else {
             // Switch to active power profile
             setCpuFrequencyMhz(CPU_FREQ_ACTIVE_MHZ);
+            Wire.setClock(400000); // Reconfigure I2C divider for restored APB=80MHz
             esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
             xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
@@ -374,6 +375,7 @@ void commsSensorsTask(void *parameter) {
             if (startAt > 0 && getTimestampMs() >= startAt) {
                 // Switch to active power profile
                 setCpuFrequencyMhz(CPU_FREQ_ACTIVE_MHZ);
+                Wire.setClock(400000); // Reconfigure I2C divider for restored APB=80MHz
                 esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
                 xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);

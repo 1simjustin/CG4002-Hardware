@@ -3,8 +3,9 @@
 #include "header.h"
 
 void setup() {
-    // Set CPU frequency for power saving (idle until first start command)
-    setCpuFrequencyMhz(CPU_FREQ_IDLE_MHZ);
+    // Set CPU to active frequency at boot so i2c_setup() calibrates the
+    // I2C divider at APB=80MHz — matching the APB used during active streaming
+    setCpuFrequencyMhz(CPU_FREQ_ACTIVE_MHZ);
 
     Serial.begin(115200);
 
