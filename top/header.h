@@ -104,6 +104,10 @@ TaskHandle_t CommsBattTaskHandle = NULL;
 TaskHandle_t BattDispTaskHandle = NULL;
 TaskHandle_t hbDispTaskHandle = NULL;
 
+#if !defined(ENABLE_WIFI_COMMS)
+TaskHandle_t SerialInputTaskHandle = NULL;
+#endif
+
 SemaphoreHandle_t xSerialMutex = NULL;
 
 TaskHandle_t hapticTaskHandle = NULL;
