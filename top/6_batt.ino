@@ -29,7 +29,10 @@ void battTask(void *parameter) {
 
         xQueueOverwrite(xBattDispQueue, &reading);
         xQueueOverwrite(xBattSerialQueue, &reading);
-        vTaskDelay(BATT_PERIOD_MS / portTICK_PERIOD_MS);
+
+        // Use longer delay when idle (not streaming)
+        bool isRunning = (xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) != 0;
+        vTaskDelay(pdMS_TO_TICKS(isRunning ? BATT_PERIOD_MS : IDLE_BATT_PERIOD_MS));
     }
 }
 

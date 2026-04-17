@@ -186,8 +186,8 @@ void imuTask(void *parameter) {
         // Check if system is running (running bit is 1) before reading sensors
         if ((xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) ==
             0) {
-            // If not running, wait before checking again
-            vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
+            // If not running, wait longer before checking again (power saving)
+            vTaskDelay(pdMS_TO_TICKS(IDLE_IMU_POLL_MS));
             continue;
         }
 

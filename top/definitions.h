@@ -9,7 +9,7 @@
 #define PLAYER_STUDENT 1
 #define PLAYER_SHIFU 2
 // Toggle the below line to switch between "student" and "shifu" player
-#define PLAYER PLAYER_SHIFU
+#define PLAYER PLAYER_STUDENT
 
 // Node identifiers (numeric for preprocessor comparison)
 #define NODE_LEFT_ARM  1
@@ -17,7 +17,7 @@
 #define NODE_LEFT_LEG  3
 #define NODE_RIGHT_LEG 4
 // Toggle the below line to switch between nodes
-#define NODE_ID NODE_LEFT_LEG
+#define NODE_ID NODE_RIGHT_ARM 
 
 // Derive NODE string from NODE_ID
 #if (NODE_ID == NODE_LEFT_ARM)
@@ -52,7 +52,7 @@
 #define SENSORS_COMMS_TASK_PRIORITY 2
 #define BATT_COMMS_TASK_PRIORITY 1
 
-#define COMMS_TASK_DELAY_MS 10
+#define COMMS_TASK_DELAY_MS 20
 #define NTP_TIMEOUT_MS 10000
 #define NTP_MAX_RETRIES 3
 #define WIFI_RETRY_ATTEMPTS 10
@@ -137,5 +137,14 @@
 #define HAPTIC_POLL_TIMER 200
 #define HAPTIC_SCORE_THRESHOLD 0.2
 #define HAPTIC_TRIG_BITS (HAPTICS_ON_BIT | COMMS_RUNNING_FLAG_BIT)
+
+// Power Management Definitions
+#define CPU_FREQ_ACTIVE_MHZ 80       // Active streaming CPU freq (default 240)
+#define CPU_FREQ_IDLE_MHZ 40         // Idle mode CPU freq (minimum for WiFi)
+#define WIFI_TX_POWER_DBM WIFI_POWER_11dBm // Reduced TX power (default ~20dBm)
+#define IDLE_IMU_POLL_MS 500         // IMU task delay when idle
+#define IDLE_COMMS_POLL_MS 100       // Comms task delay when idle
+#define IDLE_BATT_PERIOD_MS 5000     // Battery read interval when idle
+#define IDLE_WATCHDOG_POLL_MS 5000   // Watchdog check interval when idle
 
 #endif // DEFINITIONS_H

@@ -17,7 +17,7 @@
 
 // #define DEBUG
 #define ENABLE_SENSOR_COMMS
-#define ENABLE_WIFI_COMMS
+// #define ENABLE_WIFI_COMMS
 #define ENABLE_HAPTICS
 
 /**
@@ -29,6 +29,7 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 #include <math.h>
+#include <esp_wifi.h>
 
 #include "definitions.h"
 

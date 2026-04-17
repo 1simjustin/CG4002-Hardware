@@ -3,6 +3,9 @@
 #include "header.h"
 
 void setup() {
+    // Set CPU frequency for power saving (idle until first start command)
+    setCpuFrequencyMhz(CPU_FREQ_IDLE_MHZ);
+
     Serial.begin(115200);
 
     // Initialize I2C
@@ -124,7 +127,7 @@ void setup() {
                                      NULL,                 // Parameters
                                      ACTUATOR_TASK_PRIORITY, // Priority
                                      &BattDispTaskHandle,    // Task handle
-                                     COMMS_CORE              // Core 0 for comms
+                                     SENSOR_CORE             // Core 1 for sensors
     );
     if (result != pdPASS) {
         Serial.println("Failed to create task: BatteryDisplayTask");

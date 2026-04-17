@@ -104,6 +104,10 @@ void connectWiFi() {
     xSemaphoreGive(xSerialMutex);
 #endif
 
+    // Enable WiFi power saving and reduce TX power
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    WiFi.setTxPower(WIFI_TX_POWER_DBM);
+
     if (!ntpSynced) {
         syncNTP();
     }
@@ -250,6 +254,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
         }
         // No timestamp — start immediately (fallback)
         else {
+            // Switch to active power profile
+            setCpuFrequencyMhz(CPU_FREQ_ACTIVE_MHZ);
+            esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+
             xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
             // Set calibration bits to 1 to trigger calibration
             xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
@@ -268,6 +276,11 @@ void callback(char *topic, byte *payload, unsigned int length) {
         portENTER_CRITICAL(&scheduledStartMux);
         scheduledStartAt = 0;
         portEXIT_CRITICAL(&scheduledStartMux);
+
+        // Switch to idle power profile
+        setCpuFrequencyMhz(CPU_FREQ_IDLE_MHZ);
+        esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+
 #if defined(DEBUG)
         Serial.println("STOP command received");
 #endif
@@ -315,7 +328,9 @@ void commsWatchdogTask(void *parameter) {
             connectMQTT();
         }
 
-        vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
+        // Use longer delay when idle (not streaming)
+        bool isRunning = (xEventGroupGetBits(xSystemEventGroup) & COMMS_RUNNING_FLAG_BIT) != 0;
+        vTaskDelay(pdMS_TO_TICKS(isRunning ? COMMS_TASK_DELAY_MS : IDLE_WATCHDOG_POLL_MS));
     }
 }
 
@@ -357,6 +372,10 @@ void commsSensorsTask(void *parameter) {
             unsigned long long startAt = scheduledStartAt;
             portEXIT_CRITICAL(&scheduledStartMux);
             if (startAt > 0 && getTimestampMs() >= startAt) {
+                // Switch to active power profile
+                setCpuFrequencyMhz(CPU_FREQ_ACTIVE_MHZ);
+                esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+
                 xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
                 xEventGroupSetBits(xSystemEventGroup, IMU_CALIB_FLAG_BITS);
                 portENTER_CRITICAL(&scheduledStartMux);
@@ -366,7 +385,7 @@ void commsSensorsTask(void *parameter) {
                 Serial.println("Scheduled start triggered");
 #endif
             } else {
-                vTaskDelay(pdMS_TO_TICKS(COMMS_TASK_DELAY_MS));
+                vTaskDelay(pdMS_TO_TICKS(IDLE_COMMS_POLL_MS));
                 continue;
             }
         }
