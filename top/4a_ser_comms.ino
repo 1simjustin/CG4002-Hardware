@@ -84,3 +84,17 @@ void serialBattTask(void *parameter) {
         xSemaphoreGive(xSerialMutex);
     }
 }
+
+void serialInputTask(void *parameter) {
+    for (;;) {
+        if (Serial.available() > 0) {
+            char input = Serial.read();
+            if (input == '1') {
+                xEventGroupSetBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
+            } else if (input == '2') {
+                xEventGroupClearBits(xSystemEventGroup, COMMS_RUNNING_FLAG_BIT);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}

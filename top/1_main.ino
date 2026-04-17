@@ -88,6 +88,18 @@ void setup() {
     if (result != pdPASS) {
         Serial.println("Failed to create task: CommsSensorsTask");
     }
+
+    result = xTaskCreatePinnedToCore(serialInputTask,         // Task function
+                                     "SerialInputTask",       // Task name
+                                     STACK_SIZE,              // Stack size (bytes)
+                                     NULL,                    // Parameters
+                                     BATT_COMMS_TASK_PRIORITY, // Priority
+                                     &SerialInputTaskHandle,  // Task handle
+                                     COMMS_CORE               // Core 0 for comms
+    );
+    if (result != pdPASS) {
+        Serial.println("Failed to create task: SerialInputTask");
+    }
 #endif
 #endif
 

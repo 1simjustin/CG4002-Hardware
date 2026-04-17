@@ -18,6 +18,7 @@ void createSemaphores();
 // Comms Functions
 void serialSensorsTask(void *parameter);
 void serialBattTask(void *parameter);
+void serialInputTask(void *parameter);
 void commsWatchdogTask(void *parameter);
 void commsSensorsTask(void *parameter);
 void commsBattTask(void *parameter);
